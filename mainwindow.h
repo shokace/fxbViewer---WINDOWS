@@ -2,8 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QtCore>
-#include <QThread>
 
 namespace Ui {
 class MainWindow;
@@ -18,17 +16,15 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_folderButton_clicked();
+    void on_selectFilesButton_clicked();
 
-    void on_startButton_clicked();
+    void on_parseButton_clicked();
 
-    void on_lineEdit_cursorPositionChanged(int arg1, int arg2);
+    void on_stopParseButton_clicked();
 
-    void on_stopButton_clicked();
+    void on_clearAllButton_clicked();
 
-    void on_pushButton_clicked();
-
-    void on_clearSButton_clicked();
+    void on_KeywordEdit_cursorPositionChanged(int arg1, int arg2);
 
 private:
     Ui::MainWindow *ui;
