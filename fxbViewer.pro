@@ -1,6 +1,6 @@
 #-------------------------------------------------
 #
-# Project created by QtCreator 2015-04-13T01:45:58
+# Project created by QtCreator 2015-04-13T19:13:53
 #
 #-------------------------------------------------
 
@@ -13,11 +13,8 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
-    dialog.cpp
+        mainwindow.cpp
 
-HEADERS  += mainwindow.h \
-    dialog.h
+HEADERS  += mainwindow.h
 
-FORMS    += mainwindow.ui \
-    dialog.ui
+FORMS    += mainwindow.ui
