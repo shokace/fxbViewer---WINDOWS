@@ -13,7 +13,8 @@
 #include "QMenuBar"
 #include "QTextEdit"
 
-
+#include "aboutdialog.h"
+#include "ui_aboutdialog.h"
 
 bool cleared = false;
 QString keyword;
@@ -37,14 +38,17 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->progressBar->setValue(0);
     ui->progressBar->setEnabled(false);
 
-
 }
+
+
+
 
 MainWindow::~MainWindow()
 {
     delete ui;
     delete [] list;
 }
+
 
 void MainWindow::on_folderButton_clicked()
 {
@@ -58,7 +62,7 @@ void MainWindow::on_folderButton_clicked()
 
     if (dir.size() < 4)
     {
-        ui->fxbLabel->setText("<font color = 'red'>Error: Cannot select this as folder</font>");
+        ui->fxbLabel->setText("<font color = 'red'>Error: Invalid/No File Selected</font>");
         qDebug() << "Cannot Select Root";
     }
     else
@@ -105,6 +109,7 @@ void MainWindow::on_folderButton_clicked()
 
 
 }
+
 
 
 
@@ -212,3 +217,10 @@ void MainWindow::ShowContextMenu(const QPoint& pos) // this is a slot
     }
 }
 
+
+void MainWindow::on_actionAbout_triggered()
+{
+    AboutDialog mDialog;
+    mDialog.setModal(true);
+    mDialog.exec();
+}

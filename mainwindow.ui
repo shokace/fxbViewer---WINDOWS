@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1080</width>
+    <height>710</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,15 +18,187 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>800</width>
-    <height>600</height>
+    <width>1080</width>
+    <height>710</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>800</width>
-    <height>600</height>
+    <width>1080</width>
+    <height>710</height>
    </size>
+  </property>
+  <property name="palette">
+   <palette>
+    <active>
+     <colorrole role="WindowText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Button">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Text">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="ButtonText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Base">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Window">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+    </active>
+    <inactive>
+     <colorrole role="WindowText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Button">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Text">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="ButtonText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Base">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Window">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+    </inactive>
+    <disabled>
+     <colorrole role="WindowText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Button">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Text">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="ButtonText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Base">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="Window">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>29</red>
+        <green>29</green>
+        <blue>29</blue>
+       </color>
+      </brush>
+     </colorrole>
+    </disabled>
+   </palette>
   </property>
   <property name="acceptDrops">
    <bool>true</bool>
@@ -34,11 +206,113 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="windowOpacity">
+   <double>1.000000000000000</double>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QMainWindow{
+background-color:#1d1d1d;
+color:#fff;
+}
+
+QMenuBar{
+background-color:#1d1d1d;
+padding:3px;
+font: 10pt &quot;MS Shell Dlg 2&quot;;
+}
+
+QMenuBar::item{
+background-color:#3d3d3d;
+color:#fff;
+padding:5px;
+
+}
+
+QMenuBar::item::selected{
+background-color:#2d89ef;
+color:#fff;
+padding:5px;
+}
+
+
+QMenu{
+background-color:#3d3d3d;
+color:#fff;
+padding:0px;
+}
+
+QMenu::item::selected{
+color:#fff;
+background-color:#2d89ef;
+}
+
+QStatusBar{
+background-color:#7e3878;
+color:#fff;
+}
+
+QPushButton{
+border-style:solid;
+background-color:#3d3d3d;
+color:#fff;
+border-radius:7px;
+}
+
+QPushButton:hover{
+color:#ccc;
+	background-color: qlineargradient(spread:pad, x1:0.517, y1:0, x2:0.517, y2:1, stop:0 rgba(45 ,45, 45, 255), stop:0.505682 rgba(45, 45, 45, 255), stop:1 rgba(29, 29, 29, 255));
+	border-color:#2d89ef;
+border-width:2px;
+}
+
+QPushButton:disabled{
+background-color:#3d3d3d;
+color:#6d6d6d;
+}
+
+QListWidget{
+background-color:#2d2d2d;
+border-radius:3px;
+color:#5d5d5d;
+}
+
+QLineEdit{
+background-color:#3d3d3d;
+border-radius:3px;
+color:#fff;
+font: 10pt &quot;MS Shell Dlg 2&quot;;
+}
+
+QLabel{
+background-color:#3d3d3d;
+border-radius:3px;
+color:#6d6d6d;
+}
+
+QProgressBar:horizontal {
+border: 1px solid gray;
+border-radius: 5px;
+background-color: #032838;
+border-color:#1d1d1d;
+color:#5d5d5d;
+text-align: right;
+margin-right: -1ex;
+}
+
+QProgressBar::chunk:horizontal {
+background-color: #6ae594;
+
+
+}
+
+
+</string>
+  </property>
   <widget class="QWidget" name="centralWidget">
    <widget class="QPushButton" name="folderButton">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>10</y>
       <width>101</width>
       <height>21</height>
@@ -51,22 +325,22 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>120</x>
+      <x>130</x>
       <y>10</y>
-      <width>231</width>
+      <width>221</width>
       <height>21</height>
      </rect>
     </property>
     <property name="text">
-     <string>Select the folder containing your .fxb files</string>
+     <string>    Select the folder containing your .fxb files</string>
     </property>
    </widget>
    <widget class="QLineEdit" name="lineEdit">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>40</y>
-      <width>341</width>
+      <width>331</width>
       <height>20</height>
      </rect>
     </property>
@@ -82,7 +356,7 @@
      <rect>
       <x>370</x>
       <y>20</y>
-      <width>421</width>
+      <width>601</width>
       <height>21</height>
      </rect>
     </property>
@@ -93,7 +367,7 @@
      <enum>QFrame::Sunken</enum>
     </property>
     <property name="text">
-     <string>.fxb files in folder</string>
+     <string> .fxb files in folder</string>
     </property>
     <property name="textFormat">
      <enum>Qt::AutoText</enum>
@@ -108,7 +382,7 @@
    <widget class="QPushButton" name="startButton">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>170</y>
       <width>81</width>
       <height>61</height>
@@ -118,25 +392,12 @@
      <string>Start Parse</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="stopButton">
-    <property name="geometry">
-     <rect>
-      <x>100</x>
-      <y>170</y>
-      <width>81</width>
-      <height>61</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Abort</string>
-    </property>
-   </widget>
    <widget class="QPushButton" name="pushButton">
     <property name="geometry">
      <rect>
-      <x>190</x>
+      <x>110</x>
       <y>170</y>
-      <width>51</width>
+      <width>81</width>
       <height>61</height>
      </rect>
     </property>
@@ -148,9 +409,9 @@
     <property name="geometry">
      <rect>
       <x>370</x>
-      <y>40</y>
-      <width>421</width>
-      <height>192</height>
+      <y>51</y>
+      <width>691</width>
+      <height>181</height>
      </rect>
     </property>
     <property name="mouseTracking">
@@ -166,14 +427,23 @@
    <widget class="QListWidget" name="keywordList">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>240</y>
-      <width>781</width>
-      <height>331</height>
+      <width>1041</width>
+      <height>421</height>
      </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
     </property>
     <property name="acceptDrops">
      <bool>false</bool>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"/>
     </property>
     <property name="frameShape">
      <enum>QFrame::Panel</enum>
@@ -182,10 +452,10 @@
    <widget class="QProgressBar" name="progressBar">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>143</y>
-      <width>361</width>
-      <height>20</height>
+      <x>20</x>
+      <y>142</y>
+      <width>331</width>
+      <height>21</height>
      </rect>
     </property>
     <property name="value">
@@ -195,7 +465,7 @@
    <widget class="QPushButton" name="clearSButton">
     <property name="geometry">
      <rect>
-      <x>710</x>
+      <x>980</x>
       <y>20</y>
       <width>81</width>
       <height>21</height>
@@ -211,9 +481,21 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>21</height>
+     <width>1080</width>
+     <height>33</height>
     </rect>
+   </property>
+   <property name="acceptDrops">
+    <bool>false</bool>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="defaultUp">
+    <bool>false</bool>
+   </property>
+   <property name="nativeMenuBar">
+    <bool>false</bool>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">

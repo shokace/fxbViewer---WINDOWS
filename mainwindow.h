@@ -32,6 +32,8 @@ private slots:
 
     void ShowContextMenu(const QPoint&);
 
+    void on_actionAbout_triggered();
+
 private:
     Ui::MainWindow *ui;
 };
