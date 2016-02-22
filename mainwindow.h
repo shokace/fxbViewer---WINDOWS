@@ -30,6 +30,8 @@ private slots:
 
     void on_clearSButton_clicked();
 
+    void ShowContextMenu(const QPoint&);
+
 private:
     Ui::MainWindow *ui;
 };

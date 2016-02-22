@@ -4,6 +4,7 @@
 #include "QDirIterator"
 #include "QStringList"
 #include "QDebug"
+#include "QPoint"
 #include "QListWidget"
 #include "QFile"
 #include "QThread"
@@ -11,7 +12,6 @@
 #include "QMessageBox"
 #include "QMenuBar"
 #include "QTextEdit"
-
 
 
 
@@ -24,6 +24,9 @@ QString *list = new QString[max_size];
 
 QString dir;
 
+QString line;
+
+QFile inputFile;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -40,6 +43,7 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete [] list;
 }
 
 void MainWindow::on_folderButton_clicked()
@@ -54,7 +58,7 @@ void MainWindow::on_folderButton_clicked()
 
     if (dir.size() < 4)
     {
-        ui->fxbLabel->setText("<font color = 'red'>Error: Cannot select drive as root folder</font>");
+        ui->fxbLabel->setText("<font color = 'red'>Error: Cannot select this as folder</font>");
         qDebug() << "Cannot Select Root";
     }
     else
@@ -81,7 +85,6 @@ void MainWindow::on_folderButton_clicked()
                 temp->clear();
                 qDebug() << max_size;
             }
-
 
 
 
@@ -127,7 +130,7 @@ void MainWindow::on_startButton_clicked()
            QTextStream in(&inputFile);
            while (!in.atEnd())
            {
-                QString line = in.readLine();
+                line = in.readLine();
                 line = line.toLower();
                 if(line.contains(keyword))
                 {
@@ -165,14 +168,47 @@ void MainWindow::on_stopButton_clicked()
 void MainWindow::on_pushButton_clicked()
 {
     ui->keywordList->clear();
+
 }
 
 void MainWindow::on_clearSButton_clicked()
 {
-    qDebug() << "CLEAR SEARCH";
+
     ui->fxbLabel->setText(".fxb files in folder");
     ui->listWidget->clear();
     list->clear();
+    for(int i = 0; i < max_size; i++)
+    {
+        line[i]=NULL;
+    }
+    current = 0;
+    ui->keywordList->clear();
     ui->startButton->setEnabled(false);
     dir.clear();
+    qDebug() << "CLEAR SEARCH";
 }
+
+
+//right click menu maker
+void MainWindow::ShowContextMenu(const QPoint& pos) // this is a slot
+{
+    // for most widgets
+    QPoint globalPos = ui->listWidget->mapToGlobal(pos);
+    // for QAbstractScrollArea and derived classes you would use:
+    // QPoint globalPos = myWidget->viewport()->mapToGlobal(pos);
+
+    QMenu myMenu;
+    myMenu.addAction("Menu Item 1");
+    // ...
+
+    QAction* selectedItem = myMenu.exec(globalPos);
+    if (selectedItem)
+    {
+        // something was chosen, do stuff
+    }
+    else
+    {
+        // nothing was chosen
+    }
+}
+
