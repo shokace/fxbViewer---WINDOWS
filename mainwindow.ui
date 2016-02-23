@@ -211,7 +211,7 @@
   </property>
   <property name="styleSheet">
    <string notr="true">QMainWindow{
-background-color:#1d1d1d;
+background-color: #1d1d1d;
 color:#fff;
 }
 
@@ -234,6 +234,11 @@ color:#fff;
 padding:5px;
 }
 
+QMenuBar::item::selected::disabled{
+background-color:#5d5d5d;
+color:#fff;
+padding:5px;
+}
 
 QMenu{
 background-color:#3d3d3d;
@@ -280,13 +285,19 @@ QLineEdit{
 background-color:#3d3d3d;
 border-radius:3px;
 color:#fff;
-font: 10pt &quot;MS Shell Dlg 2&quot;;
+font: 12pt &quot;MS Shell Dlg 2&quot;;
 }
 
 QLabel{
 background-color:#3d3d3d;
 border-radius:3px;
 color:#6d6d6d;
+}
+
+label_3{
+background-color:#3d3d3d;
+border-radius:3px;
+color:#6ae594;
 }
 
 QProgressBar:horizontal {
@@ -301,10 +312,14 @@ margin-right: -1ex;
 
 QProgressBar::chunk:horizontal {
 background-color: #6ae594;
-
-
 }
 
+QMessageBox{
+
+background-color:#3d3d3d;
+color:#fff;
+padding:5px;
+}
 
 </string>
   </property>
@@ -344,11 +359,23 @@ background-color: #6ae594;
       <height>20</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <family>MS Shell Dlg 2</family>
+      <pointsize>12</pointsize>
+      <weight>50</weight>
+      <italic>false</italic>
+      <bold>false</bold>
+     </font>
+    </property>
     <property name="text">
-     <string>Enter Keyword...                                 </string>
+     <string>Enter Keyword...                                     </string>
     </property>
     <property name="maxLength">
-     <number>49</number>
+     <number>80</number>
+    </property>
+    <property name="frame">
+     <bool>true</bool>
     </property>
    </widget>
    <widget class="QLabel" name="fxbLabel">
@@ -415,7 +442,10 @@ background-color: #6ae594;
      </rect>
     </property>
     <property name="mouseTracking">
-     <bool>false</bool>
+     <bool>true</bool>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::ClickFocus</enum>
     </property>
     <property name="acceptDrops">
      <bool>false</bool>
@@ -475,6 +505,38 @@ background-color: #6ae594;
      <string>Clear Search</string>
     </property>
    </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>70</y>
+      <width>331</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Blue</family>
+      <pointsize>44</pointsize>
+      <weight>50</weight>
+      <italic>false</italic>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QLabel{
+background-color:#2d2d2d;
+border-radius:3px;
+color:#6ae594;
+}</string>
+    </property>
+    <property name="text">
+     <string>FXB-Viewer</string>
+    </property>
+    <property name="scaledContents">
+     <bool>false</bool>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -502,6 +564,7 @@ background-color: #6ae594;
      <string>File</string>
     </property>
     <addaction name="actionOpen"/>
+    <addaction name="actionOpen_File_Location"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -527,6 +590,12 @@ background-color: #6ae594;
   <action name="actionOpen">
    <property name="text">
     <string>Import Folder</string>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>true</bool>
    </property>
   </action>
   <action name="actionSave_As">
@@ -562,6 +631,20 @@ background-color: #6ae594;
   <action name="actionPaste">
    <property name="text">
     <string>Paste</string>
+   </property>
+  </action>
+  <action name="actionOpen_File_Location">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Open File Location</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
    </property>
   </action>
  </widget>

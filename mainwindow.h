@@ -24,8 +24,6 @@ private slots:
 
     void on_lineEdit_cursorPositionChanged(int arg1, int arg2);
 
-    void on_stopButton_clicked();
-
     void on_pushButton_clicked();
 
     void on_clearSButton_clicked();
@@ -33,6 +31,10 @@ private slots:
     void ShowContextMenu(const QPoint&);
 
     void on_actionAbout_triggered();
+
+    void on_actionOpen_triggered();
+
+    void on_actionOpen_File_Location_triggered();
 
 private:
     Ui::MainWindow *ui;
