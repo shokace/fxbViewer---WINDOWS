@@ -1,7 +1,8 @@
 # fxbViewer
-Keyword search for synth found inside fxb files for sylenth1 packs
 
-tired of forgetting where that one synth is, but you remember the name? Me too, so I made this. 
+.fxb file parser/searcher designed to find specific audio names, returning the sound bank containing desired keyword.
+
+Tired of forgetting where that one synth patch is in Sylenth, but you remember the name? Me too, so I made this. 
 It's barebones, but it will show you what file has what synth. 
 
 ## Want to improve fxbViewer?
