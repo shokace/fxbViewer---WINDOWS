@@ -12,3 +12,6 @@ ui_*.h
 *.pdb
 *.ilk
 __pycache__/
+/dist/
+/smoke-evidence/
+/downloads/

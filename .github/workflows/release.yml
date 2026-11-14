@@ -1,0 +1,43 @@
+name: Prepare release
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build and test run ID for the current master commit
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  draft:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify run, download assets, and create draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RELEASE_RUN_ID" > run.json
+          python3 - <<'PY'
+          import json, os
+          run = json.load(open('run.json'))
+          assert run['head_sha'] == os.environ['GITHUB_SHA'], 'Run must match release commit'
+          assert run['head_branch'] == 'master' and run['event'] in ('push', 'workflow_dispatch')
+          assert run['path'] == '.github/workflows/build.yml'
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          PY
+          version="$(cat VERSION)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh run download "$RELEASE_RUN_ID" --name windows-x64-package --dir assets
+          (cd assets && sha256sum --check SHA256SUMS.txt)
+          cp CHANGELOG.md release-notes.md
+          printf '\nVerified build: https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$RELEASE_RUN_ID" >> release-notes.md
+          gh release create "v$version" --draft --target "$GITHUB_SHA" --title "FXB Viewer $version" --notes-file release-notes.md assets/*.zip assets/SHA256SUMS.txt

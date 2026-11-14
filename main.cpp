@@ -5,6 +5,7 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -22,16 +23,19 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("fxbViewer");
     QCoreApplication::setApplicationName("FXB Viewer");
-    QCoreApplication::setApplicationVersion("2.1.0");
+    QCoreApplication::setApplicationVersion(QStringLiteral(FXBVIEWER_VERSION));
     QCommandLineParser parser;
     parser.setApplicationDescription("Find remembered presets in FXB and FXP sound banks.");
     parser.addHelpOption(); parser.addVersionOption();
     parser.addOption({"demo", "Open an isolated library of synthetic sample banks."});
     parser.addOption({"demo-capture", "Save a four-search screenshot tour (requires --demo).", "directory"});
+    parser.addOption({"smoke-test", "Run an isolated four-search UI check, save evidence, and exit.", "directory"});
     parser.process(app);
-    const bool demoMode = parser.isSet("demo");
-    const QString capture = parser.value("demo-capture");
-    if ((!capture.isEmpty() && !demoMode) || (!capture.isEmpty() && !QDir().mkpath(capture))) {
+    const bool smoke = parser.isSet("smoke-test");
+    const bool demoMode = parser.isSet("demo") || smoke;
+    const QString capture = parser.value(smoke ? "smoke-test" : "demo-capture");
+    if (((smoke || parser.isSet("demo-capture")) && capture.isEmpty())
+        || (smoke && parser.isSet("demo-capture")) || (!capture.isEmpty() && !demoMode) || (!capture.isEmpty() && !QDir().mkpath(capture))) {
         qCritical("--demo-capture requires --demo and a writable directory."); return 2;
     }
     std::unique_ptr<QTemporaryDir> demo;
@@ -60,20 +64,29 @@ int main(int argc, char *argv[])
         });
         QObject::connect(&tour, &QTimer::timeout, &window, [&] {
             const QString path = QDir(capture).filePath(names[step]);
-            if (!window.grab().save(path)) { qCritical("Could not save %s", qPrintable(path)); tour.stop(); return; }
+            if (!window.grab().save(path)) { qCritical("Could not save %s", qPrintable(path)); tour.stop(); app.exit(3); return; }
             auto *model = qobject_cast<fxb::SearchModel *>(window.findChild<QTableView *>("resultsTable")->model());
+            const int expected[] = {3072, 3072, 3072, 24};
+            if (smoke && (model->rowCount() != expected[step] || model->stats().usedTypos != (step == 2))) {
+                qCritical("Smoke test failed at query %d", step); tour.stop(); app.exit(4); return;
+            }
             captures += QJsonObject{{"query", queries[step]}, {"results", model->rowCount()},
                 {"search_ms", model->stats().elapsedNanoseconds / 1e6}, {"typo_recovery", model->stats().usedTypos}, {"screenshot", names[step]}};
             if (++step < queries.size()) window.findChild<QLineEdit *>("searchInput")->setText(queries[step]);
             else {
                 tour.stop();
-                QFile report(QDir(capture).filePath("tour.json"));
-                if (report.open(QIODevice::WriteOnly)) report.write(QJsonDocument(captures).toJson());
+                QSaveFile report(QDir(capture).filePath("tour.json"));
+                const auto json = QJsonDocument(captures).toJson();
+                if (!report.open(QIODevice::WriteOnly) || report.write(json) != json.size() || !report.commit()) {
+                    qCritical("Could not write tour.json"); app.exit(3); return;
+                }
+                if (smoke) { app.exit(0); return; }
                 window.findChild<QLineEdit *>("searchInput")->setText("glass leed");
             }
         });
         QTimer::singleShot(0, &window, [&] { window.addFolder(demo->path() + "/Sample Library"); });
     }
+    if (smoke) QTimer::singleShot(30000, &app, [&] { qCritical("Smoke test timed out"); app.exit(5); });
     window.show();
     return app.exec();
 }

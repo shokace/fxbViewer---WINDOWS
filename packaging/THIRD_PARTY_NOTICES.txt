@@ -1,0 +1,29 @@
+FXB Viewer third-party notices
+
+This application dynamically links Qt Core, Gui and Widgets, plus the Windows
+platform plugin, from Qtbase. Qt is copyright The Qt Company Ltd. and other
+contributors and is provided under GNU LGPL version 3 for this distribution.
+The full LGPL and GPL texts and bundled third-party notices are under
+third-party/qt/notices/. The exact Qt version, upstream URL and verified SHA-256
+are recorded in third-party/qt/provenance.json.
+
+The complete corresponding, unmodified Qtbase source archive is included in
+third-party/qt/. It also contains all upstream copyright notices, licenses,
+third-party attributions and build instructions. Only Qtbase runtime components
+are included. The application does not restrict replacing its Qt DLLs with
+compatible modified builds. The application's copyright notice does not restrict
+reverse engineering for debugging modifications to those libraries under LGPLv3.
+
+To rebuild Qt on Windows, extract that archive, follow its README and Windows
+build documentation (https://doc.qt.io/qt-6/windows-building.html), build shared
+libraries with the MSVC 2022 x64 ABI, then replace the corresponding Qt6*.dll and
+platforms/qwindows.dll files beside fxbViewer.exe. Keep a backup of the package.
+
+Microsoft Visual C++ runtime DLLs are distributed app-locally from the Visual
+Studio 2022 redistributable directory. They are copyright Microsoft Corporation
+and are subject to Microsoft's runtime terms; see MICROSOFT_RUNTIME_LICENSE.txt.
+They are not licensed under the application or Qt licenses.
+
+Reference synth presets used by development tests are not part of this package.
+The in-app demo generates synthetic test banks and does not distribute artists'
+sounds or load any synthesizer plugins.

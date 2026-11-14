@@ -25,18 +25,23 @@ ScanResult scanFolders(const QStringList &folders, const std::atomic_bool &cance
 {
     QElapsedTimer timer; timer.start();
     ScanResult result;
+    auto issue = [&](const QString &message) {
+        if (result.issues.size() < 256) result.issues += message;
+        else if (result.issues.size() == 256) result.issues += QStringLiteral("Further notices omitted; choose smaller folders for a complete report.");
+    };
     QSet<QString> files;
     QSet<QString> visitedFolders;
-    if (limits.files < 1 || limits.presets < 0 || limits.textCharacters < 0) {
+    if (limits.files < 1 || limits.presets < 0 || limits.textCharacters < 0 || limits.directoryEntries < 1) {
         result.issues += QStringLiteral("Invalid indexing limits.");
         return result;
     }
-    bool fileLimitReached = false;
+    bool fileLimitReached = false, traversalLimitReached = false;
+    int visitedEntries = 0;
     for (const QString &folder : folders) {
         if (cancelled.load()) { result.cancelled = true; return result; }
         const QString canonical = canonicalFolder(folder);
         if (canonical.isEmpty() || !QFileInfo(canonical).isReadable()) {
-            result.issues += QStringLiteral("Folder unavailable: %1").arg(folder);
+            issue(QStringLiteral("Folder unavailable: %1").arg(folder));
             continue;
         }
         if (visitedFolders.contains(canonical)) continue;
@@ -46,23 +51,28 @@ ScanResult scanFolders(const QStringList &folders, const std::atomic_bool &cance
                         QDirIterator::Subdirectories);
         while (it.hasNext()) {
             if (cancelled.load()) { result.cancelled = true; return result; }
+            if (++visitedEntries > limits.directoryEntries) { traversalLimitReached = true; break; }
             it.next();
             const QFileInfo info = it.fileInfo();
             if (info.isDir()) {
-                if (!info.isReadable()) result.issues += QStringLiteral("Folder unreadable: %1").arg(info.filePath());
+                if (!info.isReadable()) issue(QStringLiteral("Folder unreadable: %1").arg(info.filePath()));
                 continue;
             }
             const QString suffix = info.suffix().toLower();
             if (suffix != QStringLiteral("fxb") && suffix != QStringLiteral("fxp")) continue;
             const QString path = info.canonicalFilePath();
-            if (path.isEmpty()) { result.issues += QStringLiteral("File unavailable: %1").arg(info.filePath()); continue; }
+            if (path.isEmpty()) { issue(QStringLiteral("File unavailable: %1").arg(info.filePath())); continue; }
             if (files.contains(path)) continue;
             if (files.size() >= limits.files) { fileLimitReached = true; break; }
             files.insert(path);
             if (progress && files.size() % 64 == 0) progress(0, 0);
         }
+        if (traversalLimitReached) {
+            issue(QStringLiteral("Directory traversal limit reached. Choose smaller folders to index the rest."));
+            break;
+        }
         if (fileLimitReached) {
-            result.issues += QStringLiteral("%1-file limit reached. Choose smaller folders to index the rest.").arg(limits.files);
+            issue(QStringLiteral("%1-file limit reached. Choose smaller folders to index the rest.").arg(limits.files));
             break;
         }
     }
@@ -82,17 +92,17 @@ ScanResult scanFolders(const QStringList &folders, const std::atomic_bool &cance
             bank = cached->bank;
             ++result.cachedFiles;
         } else {
-            bank = BankReader::readFile(paths[i]);
+            bank = BankReader::readFile(paths[i], &cancelled);
             ++result.filesRead;
             info.refresh();
             if (bank.isValid() && !(stampFor(info) == stamp))
                 bank.error = QStringLiteral("File changed while being indexed. Refresh to retry.");
         }
-        if (!bank.isValid()) result.issues += QStringLiteral("%1: %2").arg(paths[i], bank.error);
+        if (!bank.isValid()) issue(QStringLiteral("%1: %2").arg(paths[i], bank.error));
         else {
             const qint64 characters = bank.embeddedText.size();
             if (characters > textBudget || bank.presets.size() > presetBudget) {
-                result.issues += QStringLiteral("Library memory limit reached. Choose smaller folders to index the rest.");
+                issue(QStringLiteral("Library memory limit reached. Choose smaller folders to index the rest."));
                 break;
             }
             textBudget -= characters;

@@ -9,6 +9,17 @@ This update replaces the manual arrays, text-line scanning, blocking event handl
 and fixed-position UI with separate readers, background indexing, and resizable
 Qt Widgets layouts. Search now uses an indexed, relevance-ranked engine. Qt 6 is preferred; Qt 5.15 remains supported.
 
+## Windows distribution
+
+Download the portable Windows x64 ZIP and `SHA256SUMS.txt` from the same GitHub
+Release (or a successful Actions `windows-x64-package` artifact). Extract the
+whole ZIP and launch `fxbViewer.exe`; the Qt/runtime dependencies are included.
+Builds are currently unsigned. See the included README for updating, rollback,
+and resetting preferences. The project is **all rights reserved**; bundled Qt
+and other third-party components retain their own licenses.
+
+[Release gates and packaging](docs/RELEASING.md) · [Changes](CHANGELOG.md)
+
 ## Use
 
 1. Choose **Add folder** or drop folders onto the window. Subfolders are scanned.
@@ -144,7 +155,9 @@ verification when posting budgets are reached; they remain searchable. Typo look
 uses deletion signatures and verifies one insertion, deletion, substitution, or
 adjacent transposition per word. It applies to name words of 4–32 characters, with
 a 20,000-word vocabulary cap; exact search remains complete within the file/text
-limits above. A query is limited to 256 characters.
+limits above. A query is limited to 256 characters. Each bank is capped at 100,000 programs,
+directory discovery at one million entries, and scanner notices at 256 plus a
+truncation notice. Limits are reported; choose smaller folders to index the rest.
 
 Refresh cache keys use canonical path, byte size, modification time, and metadata
 change time. This is an in-memory optimization, not a content-hash guarantee on
@@ -155,3 +168,8 @@ refresh never replaces the completed index.
 
 See [measured performance and tradeoffs](benchmarks/README.md),
 [the demo walkthrough](demo/README.md), and [verification](tests/README.md).
+
+Window layout and search options survive restarts. Settings failures are shown in
+the window. Help → Copy diagnostic information copies version/platform/counts
+without paths or preset names. `--smoke-test <directory>` runs the isolated demo
+tour, verifies search results, saves screenshots/JSON, and exits with a status code.

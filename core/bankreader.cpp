@@ -1,6 +1,7 @@
 #include "bankreader.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QtEndian>
 
 namespace fxb {
@@ -26,7 +27,7 @@ QString nameAt(const QByteArray &b, int offset)
     return result.trimmed();
 }
 
-QString extractText(const QByteArray &bytes, bool &limited)
+QString extractText(const QByteArray &bytes, bool &limited, const std::atomic_bool *cancel)
 {
     QString text;
     auto append = [&](const QByteArray &run) {
@@ -37,7 +38,9 @@ QString extractText(const QByteArray &bytes, bool &limited)
         if (available > 0) text += (decoded + QLatin1Char('\n')).left(available);
     };
     QByteArray run;
+    int processed = 0;
     for (unsigned char ch : bytes) {
+        if (++processed % 4096 == 0 && cancel && cancel->load()) return {};
         if (ch >= 32 && ch != 127) run += char(ch);
         else { append(run); run.clear(); }
         if (run.size() > BankReader::MaxTextCharacters * 4) { append(run); run.clear(); }
@@ -51,6 +54,7 @@ QString extractText(const QByteArray &bytes, bool &limited)
         for (int order = 0; order < 2 && !limited; ++order) {
             run.clear();
             for (int i = alignment; i + 1 < bytes.size(); i += 2) {
+                if ((i - alignment) % 4096 == 0 && cancel && cancel->load()) return {};
                 const auto ch = static_cast<unsigned char>(bytes[i + order]);
                 if (bytes[i + 1 - order] == 0 && ch >= 32 && ch < 127) run += char(ch);
                 else { append(run); run.clear(); }
@@ -92,7 +96,7 @@ bool sizeMatches(const QByteArray &b, int start, int expectedEnd, BankDocument &
 }
 
 bool program(const QByteArray &b, int start, int limit, int number, int &end,
-             BankDocument &doc, bool extractChunk)
+             BankDocument &doc, bool extractChunk, const std::atomic_bool *cancel)
 {
     if (!header(b, start, limit, doc)) return false;
     const QByteArray magic = b.mid(start + 8, 4);
@@ -115,28 +119,38 @@ bool program(const QByteArray &b, int start, int limit, int number, int &end,
     doc.presets.push_back({nameAt(b, start + 28), number});
     if (magic == "FPCh" && extractChunk) {
         bool limited = false;
-        doc.embeddedText = extractText(b.mid(start + 60, int(length) - 60), limited);
+        doc.embeddedText = extractText(b.mid(start + 60, int(length) - 60), limited, cancel);
         if (limited) doc.warnings += QStringLiteral("Embedded text limit reached; some text was not indexed.");
     }
     return true;
 }
 }
 
-BankDocument BankReader::readFile(const QString &path)
+BankDocument BankReader::readFile(const QString &path, const std::atomic_bool *cancel)
 {
-    QFile file(path);
     BankDocument doc;
+    if (cancel && cancel->load()) { doc.error = QStringLiteral("Indexing cancelled."); return doc; }
+    // Reject devices, sockets and pipes before open: reading them can block forever.
+    if (!QFileInfo(path).isFile()) { doc.error = QStringLiteral("Not a regular file."); return doc; }
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) { doc.error = file.errorString(); return doc; }
     if (file.size() > MaxFileBytes) { doc.error = QStringLiteral("File exceeds the 64 MiB size limit."); return doc; }
-    const QByteArray bytes = file.read(MaxFileBytes + 1);
-    if (file.error() != QFileDevice::NoError) { doc.error = file.errorString(); return doc; }
-    return parse(bytes);
+    QByteArray bytes;
+    while (!file.atEnd() && bytes.size() <= MaxFileBytes) {
+        if (cancel && cancel->load()) { doc.error = QStringLiteral("Indexing cancelled."); return doc; }
+        const auto block = file.read(qMin(qint64(1024 * 1024), MaxFileBytes + 1 - bytes.size()));
+        if (file.error() != QFileDevice::NoError) { doc.error = file.errorString(); return doc; }
+        if (block.isEmpty()) break;
+        bytes += block;
+    }
+    return parse(bytes, cancel);
 }
 
-BankDocument BankReader::parse(const QByteArray &bytes)
+BankDocument BankReader::parse(const QByteArray &bytes, const std::atomic_bool *cancel)
 {
     BankDocument doc;
     if (bytes.size() > MaxFileBytes) { doc.error = QStringLiteral("File exceeds the 64 MiB size limit."); return doc; }
+    if (cancel && cancel->load()) { doc.error = QStringLiteral("Indexing cancelled."); return doc; }
     const int total = bytes.size();
     if (!header(bytes, 0, total, doc)) return doc;
     const QByteArray magic = bytes.mid(8, 4);
@@ -149,16 +163,18 @@ BankDocument BankReader::parse(const QByteArray &bytes)
 
     int end = 0;
     if (magic == "FxCk" || magic == "FPCh") {
-        if (!program(bytes, 0, total, 1, end, doc, true)) return doc;
+        if (!program(bytes, 0, total, 1, end, doc, true, cancel)) return doc;
     } else if (magic == "FxBk") {
         if (total < 156) { doc.error = QStringLiteral("Bank header is truncated."); return doc; }
         const quint32 count = u32(bytes, 24);
         if (count > quint32((total - 156) / 56)) {
             doc.error = QStringLiteral("Bank program count exceeds the available data."); return doc;
         }
+        if (count > MaxPresets) { doc.error = QStringLiteral("Bank exceeds the 100,000-preset limit."); return doc; }
         end = 156;
         for (quint32 i = 0; i < count; ++i) {
-            if (!program(bytes, end, total, int(i + 1), end, doc, false)) return doc;
+            if (cancel && cancel->load()) { doc.error = QStringLiteral("Indexing cancelled."); return doc; }
+            if (!program(bytes, end, total, int(i + 1), end, doc, false, cancel)) return doc;
         }
     } else if (magic == "FBCh") {
         if (total < 160 || quint64(u32(bytes, 156)) + 160 != quint64(total)) {
@@ -166,12 +182,13 @@ BankDocument BankReader::parse(const QByteArray &bytes)
         }
         end = total;
         bool limited = false;
-        doc.embeddedText = extractText(bytes.mid(160), limited);
+        doc.embeddedText = extractText(bytes.mid(160), limited, cancel);
         doc.warnings += QStringLiteral("Plugin-specific bank: searching embedded text; preset names are not decoded.");
         if (limited) doc.warnings += QStringLiteral("Embedded text limit reached; some text was not indexed.");
     } else {
         doc.error = QStringLiteral("Unsupported VST2 record type: %1.").arg(doc.format); return doc;
     }
+    if (cancel && cancel->load()) { doc.error = QStringLiteral("Indexing cancelled."); return doc; }
     if (end != total) doc.error = QStringLiteral("Unexpected trailing data after the VST2 payload.");
     else sizeMatches(bytes, 0, total, doc);
     return doc;

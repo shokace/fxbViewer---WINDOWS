@@ -23,6 +23,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSettings>
+#include <QSysInfo>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QTableView>
@@ -76,7 +77,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     toolbar->addWidget(clear);
     layout->addLayout(toolbar);
 
-    auto *splitter = new QSplitter;
+    auto *splitter = librarySplit_ = new QSplitter;
     auto *sidebar = new QWidget;
     auto *sideLayout = new QVBoxLayout(sidebar);
     sideLayout->setContentsMargins(0, 0, 8, 0);
@@ -161,7 +162,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     emptyState_->setObjectName("emptyState");
     emptyState_->setWordWrap(true);
     contentLayout->addWidget(emptyState_);
-    auto *resultsSplit = new QSplitter(Qt::Vertical);
+    auto *resultsSplit = resultsSplit_ = new QSplitter(Qt::Vertical);
     resultsSplit->addWidget(table_);
     details_ = new QPlainTextEdit;
     details_->setObjectName("resultDetails");
@@ -201,6 +202,11 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     statusLine->addWidget(status_, 1);
     statusLine->addWidget(issuesButton_);
     layout->addLayout(statusLine);
+    settingsWarning_ = new QLabel;
+    settingsWarning_->setObjectName("settingsWarning");
+    settingsWarning_->setWordWrap(true);
+    settingsWarning_->hide();
+    layout->addWidget(settingsWarning_);
     setCentralWidget(central);
     setStyleSheet(QStringLiteral(R"(
         QMainWindow, QDialog { background: #101923; }
@@ -272,7 +278,14 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
         QMessageBox::information(this, tr("Find a preset"), tr("Add folders containing FXB banks or FXP presets. Indexing runs in the background; search ranks the completed library as you type. Words can appear in any order; use quotes for a phrase. Accents and case are ignored. If no exact results exist, similar-name search can recover one-letter mistakes. Names rank ahead of bank metadata. Refresh reuses banks whose size and timestamps have not changed; File → Rebuild from disk rereads everything.\n\nStandard banks show preset names and positions. Plugin-specific banks expose searchable embedded text where available; those matches are not guaranteed preset names. Compressed or encrypted names cannot be decoded.\n\nSelect a result to copy its path or open its folder. Cancel keeps the previous completed index. Clear library removes folder selections and results, never your files."));
     });
     connect(helpMenu->addAction(tr("About")), &QAction::triggered, this, [this] {
-        QMessageBox::about(this, tr("About FXB Viewer"), tr("FXB Viewer 2.1\nSound-bank search and preset discovery.\n\nOriginal project by Shokace / Petar Juric.\nThis application reads preset files; it does not load plugins or play audio."));
+        QMessageBox::about(this, tr("About FXB Viewer"), tr("FXB Viewer %1\nSound-bank search and preset discovery.\n\nOriginal project by Shokace / Petar Juric.\nThis application reads preset files; it does not load plugins or play audio.").arg(QStringLiteral(FXBVIEWER_VERSION)));
+    });
+    connect(helpMenu->addAction(tr("About Qt")), &QAction::triggered, qApp, &QApplication::aboutQt);
+    connect(helpMenu->addAction(tr("Copy diagnostic information")), &QAction::triggered, this, [this] {
+        QApplication::clipboard()->setText(tr("FXB Viewer %1\nQt %2\nPlatform: %3 (%4)\nIndexed files: %5\nNotices: %6")
+            .arg(QStringLiteral(FXBVIEWER_VERSION), QString::fromLatin1(qVersion()), QSysInfo::prettyProductName(), QSysInfo::currentCpuArchitecture())
+            .arg(indexedFiles_).arg(issues_.size()));
+        status_->setText(tr("Diagnostic information copied. No folder paths or preset names are included."));
     });
     connect(addButton_, &QPushButton::clicked, this, &MainWindow::chooseFolder);
     connect(refreshButton_, &QPushButton::clicked, this, &MainWindow::refreshLibrary);
@@ -312,6 +325,14 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
         auto *item = new QListWidgetItem(QFileInfo(folder).fileName().isEmpty() ? folder : QFileInfo(folder).fileName(), folderList_);
         item->setToolTip(folder);
     }
+    restoreGeometry(settings_->value("window/geometry").toByteArray());
+    librarySplit_->restoreState(settings_->value("window/librarySplit").toByteArray());
+    resultsSplit_->restoreState(settings_->value("window/resultsSplit").toByteArray());
+    table_->horizontalHeader()->restoreState(settings_->value("window/columns").toByteArray());
+    namesOnly_->setChecked(settings_->value("search/namesOnly", false).toBool());
+    typos_->setChecked(settings_->value("search/allowTypos", true).toBool());
+    sortChoice_->setCurrentIndex(qBound(0, settings_->value("search/sort", 0).toInt(), 2));
+    checkSettings();
     updateCount();
     updateControls();
     if (!folders_.isEmpty()) QTimer::singleShot(0, this, &MainWindow::refreshLibrary);
@@ -319,6 +340,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
 
 MainWindow::~MainWindow()
 {
+    savePreferences();
     if (worker_) {
         disconnect(worker_, nullptr, this, nullptr);
         worker_->cancel();
@@ -329,6 +351,26 @@ MainWindow::~MainWindow()
 void MainWindow::saveFolders()
 {
     settings_->setValue("library/folders", folders_);
+    settings_->sync();
+    checkSettings();
+}
+
+void MainWindow::checkSettings()
+{
+    const bool failed = settings_->status() != QSettings::NoError;
+    settingsWarning_->setVisible(failed);
+    if (failed) settingsWarning_->setText(tr("Preferences could not be read or saved. This session still works, but changes may not survive restart. Check permissions or reset the settings file: %1").arg(settings_->fileName()));
+}
+
+void MainWindow::savePreferences()
+{
+    settings_->setValue("window/geometry", saveGeometry());
+    settings_->setValue("window/librarySplit", librarySplit_->saveState());
+    settings_->setValue("window/resultsSplit", resultsSplit_->saveState());
+    settings_->setValue("window/columns", table_->horizontalHeader()->saveState());
+    settings_->setValue("search/namesOnly", namesOnly_->isChecked());
+    settings_->setValue("search/allowTypos", typos_->isChecked());
+    settings_->setValue("search/sort", sortChoice_->currentIndex());
     settings_->sync();
 }
 

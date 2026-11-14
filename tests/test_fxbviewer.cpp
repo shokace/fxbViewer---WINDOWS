@@ -23,6 +23,10 @@
 #include <QTemporaryDir>
 #include <QUrl>
 #include <QtEndian>
+#include <random>
+#ifdef Q_OS_UNIX
+#include <sys/stat.h>
+#endif
 #include "core/bankreader.h"
 #include "core/searchindex.h"
 #include "core/demodata.h"
@@ -446,6 +450,87 @@ private slots:
         QVERIFY(window.findChild<QLabel *>("statusText")->text().contains("3 reused"));
         window.rebuildLibrary(); QTRY_VERIFY_WITH_TIMEOUT(!window.isScanning(), 5000);
         QVERIFY(window.findChild<QLabel *>("statusText")->text().contains("3 read"));
+    }
+    void readerCancellationAndNonRegularFiles() {
+        std::atomic_bool cancel{true};
+        QVERIFY(!BankReader::parse(fixture("generated/standard.fxb"), &cancel).isValid());
+        QVERIFY(!BankReader::readFile(root_ + "/generated/standard.fxb", &cancel).isValid());
+        QTemporaryDir dir;
+        QVERIFY(!BankReader::readFile(dir.path()).isValid());
+#ifdef Q_OS_UNIX
+        const QString pipe = dir.filePath("pipe.fxb");
+        QCOMPARE(::mkfifo(QFile::encodeName(pipe).constData(), 0600), 0);
+        QVERIFY(BankReader::readFile(pipe).error.contains("regular file"));
+#endif
+    }
+    void parserPresetLimit() {
+        const auto preset = fixture("generated/parameter.fxp");
+        auto bank = fixture("generated/standard.fxb").left(156);
+        for (int i = 0; i <= BankReader::MaxPresets; ++i) bank += preset;
+        qToBigEndian<quint32>(bank.size() - 8, reinterpret_cast<uchar *>(bank.data() + 4));
+        qToBigEndian<quint32>(BankReader::MaxPresets + 1, reinterpret_cast<uchar *>(bank.data() + 24));
+        const auto result = BankReader::parse(bank);
+        QVERIFY(result.error.contains("preset limit"));
+        QVERIFY(result.presets.isEmpty());
+    }
+    void seededParserMutations() {
+        // Reproducible malformed headers, lengths, names and truncations. Run
+        // the same corpus under ASan/UBSan in CI to catch invalid memory access.
+        std::mt19937 random(0x465842);
+        const QStringList files{"generated/standard.fxb", "generated/chunk.fxp", "generated/opaque.fxb"};
+        for (const auto &name : files) {
+            const auto original = fixture(name);
+            for (int i = 0; i < 1000; ++i) {
+                auto bytes = original;
+                for (int j = 0; j < 1 + i % 8; ++j) bytes[int(random() % bytes.size())] = char(random() & 255);
+                if (i % 3 == 0) bytes.truncate(int(random() % bytes.size()));
+                const auto result = BankReader::parse(bytes);
+                QVERIFY(result.embeddedText.size() <= BankReader::MaxTextCharacters);
+                QVERIFY(result.presets.size() <= BankReader::MaxPresets);
+                if (result.isValid()) QVERIFY(!result.format.isEmpty());
+            }
+        }
+    }
+    void discoveryAndNoticeBudgets() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        for (int i = 0; i < 20; ++i) write(dir.filePath(QString::number(i) + ".txt"), "x");
+        std::atomic_bool cancel{false};
+        ScanLimits limits; limits.directoryEntries = 3;
+        auto result = scanFolders({dir.path()}, cancel, {}, limits);
+        QVERIFY(result.issues.join(' ').contains("traversal limit"));
+        QStringList missing;
+        for (int i = 0; i < 400; ++i) missing += dir.filePath("missing" + QString::number(i));
+        result = scanFolders(missing, cancel);
+        QCOMPARE(result.issues.size(), 257);
+        QVERIFY(result.issues.last().contains("omitted"));
+    }
+    void normalizedSnippetKeepsMatchedContext() {
+        BankDocument bank; bank.format = "FBCh";
+        bank.embeddedText = QString(500, ' ') + QString::fromUtf8("Étoile\n    Pad");
+        const auto index = SearchIndex::build({{"/banks/test.fxb", bank}});
+        const auto found = index->search("\"etoile pad\"");
+        QCOMPARE(found.hits.size(), 1);
+        QCOMPARE(found.hits[0].source, MatchSource::EmbeddedText);
+        QVERIFY(index->snippet(found.hits[0]).contains("etoile pad"));
+    }
+    void preferencesPersistAndErrorsAreVisible() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        const auto path = dir.filePath("preferences.ini");
+        {
+            MainWindow window(path);
+            window.findChild<QCheckBox *>("namesOnly")->setChecked(true);
+            window.findChild<QCheckBox *>("allowTypos")->setChecked(false);
+            window.findChild<QComboBox *>("sortChoice")->setCurrentIndex(2);
+        }
+        MainWindow restored(path);
+        QVERIFY(restored.findChild<QCheckBox *>("namesOnly")->isChecked());
+        QVERIFY(!restored.findChild<QCheckBox *>("allowTypos")->isChecked());
+        QCOMPARE(restored.findChild<QComboBox *>("sortChoice")->currentIndex(), 2);
+        // A regular file cannot contain a settings file, on any OS or user.
+        write(dir.filePath("blocker"), "x");
+        MainWindow blocked(dir.filePath("blocker/prefs.ini"));
+        blocked.clearLibrary();
+        QVERIFY(!blocked.findChild<QLabel *>("settingsWarning")->isHidden());
     }
     void uiSearchClipboardRevealAndClear() {
         QTemporaryDir dir; QVERIFY(dir.isValid());

@@ -5,6 +5,7 @@
 #include "core/library.h"
 
 class QSettings;
+class QSplitter;
 class QCheckBox;
 class QComboBox;
 class QListWidget;
@@ -43,6 +44,8 @@ private:
     void startScan(bool forceRead);
     void updateSearch();
     void saveFolders();
+    void checkSettings();
+    void savePreferences();
     void updateControls();
     void updateCount();
     void showSelection();
@@ -61,6 +64,9 @@ private:
     QTableView *table_;
     QPlainTextEdit *details_;
     QLabel *status_;
+    QLabel *settingsWarning_;
+    QSplitter *librarySplit_;
+    QSplitter *resultsSplit_;
     QLabel *count_;
     QLabel *emptyState_;
     QCheckBox *namesOnly_;

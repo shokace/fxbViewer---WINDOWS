@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <QByteArray>
 #include <QString>
 #include <QStringList>
@@ -25,7 +26,8 @@ class BankReader {
 public:
     static constexpr qint64 MaxFileBytes = 64 * 1024 * 1024;
     static constexpr int MaxTextCharacters = 256 * 1024;
-    static BankDocument readFile(const QString &path);
-    static BankDocument parse(const QByteArray &bytes);
+    static constexpr int MaxPresets = 100000;
+    static BankDocument readFile(const QString &path, const std::atomic_bool *cancel = nullptr);
+    static BankDocument parse(const QByteArray &bytes, const std::atomic_bool *cancel = nullptr);
 };
 }

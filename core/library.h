@@ -38,6 +38,7 @@ struct ScanLimits {
     int files = 10000;
     int presets = 100000;
     qint64 textCharacters = 64 * 1024 * 1024;
+    int directoryEntries = 1000000;
 };
 
 QString canonicalFolder(const QString &path);

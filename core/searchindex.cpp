@@ -189,6 +189,7 @@ SearchResults SearchIndex::search(const QString &rawQuery, SearchOptions options
     QElapsedTimer timer; timer.start();
     SearchResults result;
     const QString query = rawQuery.trimmed();
+    if (query.size() > 256) { result.stats.elapsedNanoseconds = timer.nsecsElapsed(); return result; }
     bool quoted = false;
     const QStringList terms = termsFor(query, quoted);
     if (query.isEmpty()) {
@@ -273,13 +274,17 @@ QString SearchIndex::snippet(const SearchHit &hit) const {
     const auto &r = records_[hit.row];
     const auto &e = entries_[r.bank];
     if (hit.source == MatchSource::EmbeddedText) {
-        const auto lines = e.bank.embeddedText.split('\n');
-        for (const auto &line : lines) {
-            const int pos = normalize(line).indexOf(hit.matchedTerm);
-            if (pos < 0) continue;
+        // Offsets in normalized text differ after accent/whitespace folding.
+        // Build context from the same normalized field used by the matcher,
+        // including phrases spanning lines, so the match cannot disappear.
+        const QString &original = e.bank.embeddedText;
+        const int originalPos = original.indexOf(hit.matchedTerm, 0, Qt::CaseInsensitive);
+        const QString &text = originalPos >= 0 ? original : banks_[r.bank].text;
+        const int pos = originalPos >= 0 ? originalPos : text.indexOf(hit.matchedTerm);
+        if (pos >= 0) {
             const int start = std::max(0, pos - 48);
-            return (start ? QStringLiteral("…") : QString()) + line.mid(start, 180)
-                + (line.size() > start + 180 ? QStringLiteral("…") : QString());
+            return (start ? QStringLiteral("…") : QString()) + text.mid(start, 180)
+                + (text.size() > start + 180 ? QStringLiteral("…") : QString());
         }
     }
     if (hit.source == MatchSource::Bank) return QFileInfo(e.path).fileName();

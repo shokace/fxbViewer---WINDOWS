@@ -1,0 +1,10 @@
+Copyright (c) Petar Juric. All rights reserved.
+
+No open-source license is granted for the original FXB Viewer source code or
+artwork. Contact the copyright holder for permission to copy, modify, or
+redistribute it beyond rights granted by applicable law.
+
+Third-party components and test fixtures retain their own licenses. This notice
+does not restrict rights granted by those licenses, including replacement of the
+shared Qt libraries and reverse engineering for debugging modifications to them
+as permitted by the GNU Lesser General Public License version 3.

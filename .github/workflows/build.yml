@@ -1,15 +1,23 @@
 name: Build and test
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         qt: [5, 6]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install build tools
         run: |
           sudo apt-get update
@@ -22,14 +30,35 @@ jobs:
           fi
       - run: ./dev.sh build
       - run: ./dev.sh test
+      - name: Application smoke test
+        run: QT_QPA_PLATFORM=offscreen ./dev.sh run --smoke-test "$RUNNER_TEMP/tour"
+      - name: Sanitized tests (Qt 6)
+        if: matrix.qt == 6
+        run: |
+          mkdir -p "$RUNNER_TEMP/sanitized"
+          cd "$RUNNER_TEMP/sanitized"
+          qmake6 "$GITHUB_WORKSPACE/tests/tests.pro" CONFIG+=debug CONFIG-=release 'QMAKE_CXXFLAGS+=-fsanitize=address,undefined -fno-omit-frame-pointer' 'QMAKE_LFLAGS+=-fsanitize=address,undefined'
+          make -j2
+          QT_QPA_PLATFORM=offscreen ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ./fxbviewer_tests
+      - name: Whitespace and launcher checks
+        run: |
+          git diff --check
+          bash -n dev.sh
   windows:
     runs-on: windows-2022
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: jurplel/install-qt-action@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Read Qt lockfile
+        shell: pwsh
+        run: |
+          $qt = Get-Content packaging/qt.json -Raw | ConvertFrom-Json
+          "FXB_QT_VERSION=$($qt.version)" >> $env:GITHUB_ENV
+      - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         with:
-          version: '6.8.3'
+          version: ${{ env.FXB_QT_VERSION }}
           arch: win64_msvc2022_64
+          aqtversion: '==3.3.0'
           cache: true
       - name: Build and test with MSVC
         shell: cmd
@@ -51,3 +80,44 @@ jobs:
           set QT_QPA_PLATFORM=offscreen
           release\fxbviewer_tests.exe
           if errorlevel 1 exit /b 1
+      - name: Prepare verified Qt source and notices
+        run: python scripts/prepare-qt-notices.py build/qt-notices --cache build/downloads
+      - name: Package portable application and symbols
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          if errorlevel 1 exit /b 1
+          pwsh -NoProfile -File scripts/package-windows.ps1 -Executable build/release/fxbViewer.exe -OutputDirectory dist -QtSourceNotices build/qt-notices
+          if errorlevel 1 exit /b 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-x64-package
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+  windows-package-smoke:
+    needs: windows
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-x64-package
+          path: downloads
+      - name: Verify extracted application without Qt SDK
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem downloads/FXB-Viewer-*-windows-x64.zip | Select-Object -First 1
+          ./scripts/smoke-windows.ps1 -Archive $zip.FullName -EvidenceDirectory smoke-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-smoke-evidence
+          path: |
+            smoke-evidence/*.json
+            smoke-evidence/*.log
+            smoke-evidence/tour/*
+          if-no-files-found: warn
