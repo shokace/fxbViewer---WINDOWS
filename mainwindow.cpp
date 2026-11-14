@@ -2,6 +2,8 @@
 #include "core/resultmodel.h"
 #include <QApplication>
 #include <QClipboard>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
 #include <QDialog>
@@ -28,13 +30,13 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
-MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWindow(parent)
+MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMode) : QMainWindow(parent), demoMode_(demoMode)
 {
     settings_ = settingsPath.isEmpty() ? std::make_unique<QSettings>()
         : std::make_unique<QSettings>(settingsPath, QSettings::IniFormat);
-    setWindowTitle(tr("FXB Viewer"));
+    setWindowTitle(demoMode_ ? tr("FXB Viewer — Demo") : tr("FXB Viewer"));
     setAcceptDrops(true);
-    resize(1160, 780);
+    resize(1240, 840);
     setMinimumSize(820, 560);
     auto *central = new QWidget(this);
     auto *layout = new QVBoxLayout(central);
@@ -45,10 +47,18 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     titleFont.setPointSize(22);
     titleFont.setBold(true);
     title->setFont(titleFont);
+    title->setObjectName("appTitle");
     layout->addWidget(title);
-    auto *subtitle = new QLabel(tr("Find a remembered preset. Search your sound banks in one place."));
+    auto *subtitle = new QLabel(tr("Remember the sound. Find the preset."));
     subtitle->setWordWrap(true);
+    subtitle->setObjectName("subtitle");
     layout->addWidget(subtitle);
+    if (demoMode_) {
+        auto *demo = new QLabel(tr("DEMO LIBRARY  ·  Synthetic presets  ·  Your own library stays separate"));
+        demo->setObjectName("demoBanner");
+        demo->setWordWrap(true);
+        layout->addWidget(demo);
+    }
 
     auto *toolbar = new QHBoxLayout;
     addButton_ = new QPushButton(tr("Add folder…"));
@@ -75,7 +85,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     folderList_->setObjectName("folderList");
     folderList_->setMinimumWidth(180);
     sideLayout->addWidget(folderList_);
-    removeButton_ = new QPushButton(tr("Remove selected folder"));
+    removeButton_ = new QPushButton(tr("Remove folder"));
     removeButton_->setObjectName("removeFolder");
     sideLayout->addWidget(removeButton_);
     auto *hint = new QLabel(tr("Drop folders here to add them. Subfolders are included. Supports .fxb and .fxp files."));
@@ -88,12 +98,45 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     contentLayout->setContentsMargins(8, 0, 0, 0);
     search_ = new QLineEdit;
     search_->setObjectName("searchInput");
-    search_->setPlaceholderText(tr("Search preset, bank, plugin ID, or embedded text…"));
+    search_->setPlaceholderText(tr("Try a name, a few remembered words, or a bank…"));
     search_->setClearButtonEnabled(true);
+    search_->setMaxLength(256);
     search_->setAccessibleName(tr("Search library"));
     contentLayout->addWidget(search_);
+    auto *searchHint = new QLabel(tr("Any word order. Accents optional. Use “quotes” for a phrase."));
+    searchHint->setObjectName("searchHint");
+    searchHint->setWordWrap(true);
+    contentLayout->addWidget(searchHint);
+    auto *options = new QHBoxLayout;
+    namesOnly_ = new QCheckBox(tr("Names only"));
+    namesOnly_->setObjectName("namesOnly");
+    typos_ = new QCheckBox(tr("Find similar names"));
+    typos_->setObjectName("allowTypos");
+    typos_->setChecked(true);
+    typos_->setToolTip(tr("If no exact matches are found, try one-letter spelling differences in preset names."));
+    sortChoice_ = new QComboBox;
+    sortChoice_->setObjectName("sortChoice");
+    sortChoice_->addItems({tr("Best matches"), tr("Preset A–Z"), tr("Bank A–Z")});
+    options->addWidget(namesOnly_);
+    options->addWidget(typos_);
+    options->addStretch();
+    options->addWidget(sortChoice_);
+    contentLayout->addLayout(options);
+    if (demoMode_) {
+        auto *examples = new QHBoxLayout;
+        examples->addWidget(new QLabel(tr("Try:")));
+        for (const QString query : {"glass lead", "lead glass", "glass leed", "hidden lead"}) {
+            auto *example = new QPushButton(query);
+            example->setProperty("example", true);
+            connect(example, &QPushButton::clicked, this, [this, query] { search_->setText(query); });
+            examples->addWidget(example);
+        }
+        examples->addStretch();
+        contentLayout->addLayout(examples);
+    }
     count_ = new QLabel;
     count_->setObjectName("resultCount");
+    count_->setWordWrap(true);
     contentLayout->addWidget(count_);
     model_ = new fxb::ResultModel(this);
     searchModel_ = new fxb::SearchModel(this);
@@ -104,8 +147,8 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
     table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table_->setSortingEnabled(true);
-    table_->sortByColumn(1, Qt::AscendingOrder);
+    table_->setSortingEnabled(false);
+    searchModel_->sort(0, Qt::AscendingOrder);
     table_->setAlternatingRowColors(true);
     table_->setShowGrid(false);
     table_->verticalHeader()->hide();
@@ -114,13 +157,23 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     table_->setColumnWidth(1, 200);
     table_->setColumnWidth(2, 130);
     table_->setColumnWidth(3, 100);
-    contentLayout->addWidget(table_, 3);
+    emptyState_ = new QLabel;
+    emptyState_->setObjectName("emptyState");
+    emptyState_->setWordWrap(true);
+    contentLayout->addWidget(emptyState_);
+    auto *resultsSplit = new QSplitter(Qt::Vertical);
+    resultsSplit->addWidget(table_);
     details_ = new QPlainTextEdit;
     details_->setObjectName("resultDetails");
     details_->setReadOnly(true);
+    details_->setMinimumHeight(110);
     details_->setMaximumBlockCount(1500);
     details_->setPlaceholderText(tr("Select a result to inspect its location and format details."));
-    contentLayout->addWidget(details_, 1);
+    resultsSplit->addWidget(details_);
+    resultsSplit->setStretchFactor(0, 3);
+    resultsSplit->setStretchFactor(1, 1);
+    resultsSplit->setSizes({360, 140});
+    contentLayout->addWidget(resultsSplit, 1);
     auto *resultActions = new QHBoxLayout;
     revealButton_ = new QPushButton(tr("Open containing folder"));
     revealButton_->setObjectName("revealFile");
@@ -143,12 +196,53 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     status_ = new QLabel(tr("Add a folder to start building your library."));
     status_->setObjectName("statusText");
     status_->setWordWrap(true);
-    issuesButton_ = new QPushButton(tr("View issues"));
+    issuesButton_ = new QPushButton(tr("Review notices"));
     issuesButton_->setObjectName("viewIssues");
     statusLine->addWidget(status_, 1);
     statusLine->addWidget(issuesButton_);
     layout->addLayout(statusLine);
     setCentralWidget(central);
+    setStyleSheet(QStringLiteral(R"(
+        QMainWindow, QDialog { background: #101923; }
+        QWidget { color: #e1eaf2; }
+        QLabel#subtitle, QLabel#searchHint, QLabel#resultCount { color: #9fbbca; }
+        QLabel#demoBanner { background: #16392f; color: #8ee5c8; padding: 8px 12px; border-radius: 6px; }
+        QLabel#emptyState { color: #a8bccb; padding: 10px; }
+        QMenuBar { background: #101923; }
+        QMenuBar::item:selected, QMenu::item:selected { background: #2b4659; }
+        QMenu { background: #1b2a39; border: 1px solid #344b60; }
+        QLineEdit, QPlainTextEdit, QListWidget, QTableView {
+            background: #152332; border: 1px solid #2b4153; border-radius: 6px;
+            selection-background-color: #28584f; selection-color: #f2fffa;
+        }
+        QLineEdit { padding: 10px 12px; }
+        QLineEdit:focus { border: 1px solid #68d8b7; }
+        QPlainTextEdit { padding: 10px; }
+        QListWidget::item { padding: 8px; }
+        QTableView { alternate-background-color: #192a3b; }
+        QHeaderView::section { background: #203246; color: #aac4d6; padding: 8px; border: 0; border-bottom: 1px solid #314c61; }
+        QPushButton { background: #22384c; border: 1px solid #36536a; border-radius: 6px; padding: 8px 12px; }
+        QPushButton:hover { background: #2e4a62; }
+        QPushButton:pressed { background: #173d38; }
+        QPushButton:disabled { color: #758897; background: #1b2936; border-color: #293b49; }
+        QPushButton#addFolder { background: #6ad8b9; color: #102c26; border-color: #6ad8b9; font-weight: bold; }
+        QPushButton#clearLibrary { background: transparent; color: #9eb7c8; }
+        QPushButton[example="true"] { padding: 5px 8px; color: #91e0c7; }
+        QComboBox { background: #203448; border: 1px solid #36536a; border-radius: 6px; padding: 6px 12px; }
+        QComboBox QAbstractItemView { background: #203448; selection-background-color: #356050; }
+        QCheckBox { spacing: 7px; }
+        QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid #5b798c; border-radius: 3px; background: #172737; }
+        QCheckBox::indicator:checked { background: #6ad8b9; border-color: #6ad8b9; }
+        QProgressBar { border: 1px solid #36536a; border-radius: 4px; background: #152332; text-align: center; }
+        QProgressBar::chunk { background: #397e6a; }
+        QSplitter::handle { background: #203246; }
+        QScrollBar:vertical { background: #152332; width: 12px; margin: 0; }
+        QScrollBar:horizontal { background: #152332; height: 12px; margin: 0; }
+        QScrollBar::handle { background: #405c70; border-radius: 4px; min-height: 24px; min-width: 24px; }
+        QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+        QScrollBar::add-page, QScrollBar::sub-page { background: none; }
+        QToolTip { background: #203448; color: #e1eaf2; border: 1px solid #47627a; }
+    )"));
 
     auto *fileMenu = menuBar()->addMenu(tr("&File"));
     addAction_ = fileMenu->addAction(tr("Add folder…"));
@@ -157,6 +251,10 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     refreshAction_ = fileMenu->addAction(tr("Refresh library"));
     refreshAction_->setShortcut(QKeySequence::Refresh);
     connect(refreshAction_, &QAction::triggered, this, &MainWindow::refreshLibrary);
+    rebuildAction_ = fileMenu->addAction(tr("Rebuild from disk"));
+    rebuildAction_->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+R")));
+    connect(rebuildAction_, &QAction::triggered, this, &MainWindow::rebuildLibrary);
+    refreshButton_->setToolTip(tr("Reuse unchanged banks. Use File → Rebuild from disk to bypass the cache."));
     fileMenu->addAction(tr("Clear library"), this, &MainWindow::clearLibrary);
     fileMenu->addSeparator();
     auto *quitAction = fileMenu->addAction(tr("Quit"));
@@ -171,10 +269,10 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     connect(copyAction, &QAction::triggered, this, &MainWindow::copySelectedPath);
     auto *helpMenu = menuBar()->addMenu(tr("&Help"));
     connect(helpMenu->addAction(tr("How to use")), &QAction::triggered, this, [this] {
-        QMessageBox::information(this, tr("Find a preset"), tr("Add folders containing FXB banks or FXP presets. Indexing runs in the background; search filters the completed library as you type. Refresh after changing files.\n\nStandard banks show preset names and positions. Plugin-specific banks expose searchable embedded text where available; those matches are not guaranteed preset names. Compressed or encrypted names cannot be decoded.\n\nSelect a result to copy its path or open its folder. Cancel keeps the previous completed index. Clear library removes folder selections and results, never your files."));
+        QMessageBox::information(this, tr("Find a preset"), tr("Add folders containing FXB banks or FXP presets. Indexing runs in the background; search ranks the completed library as you type. Words can appear in any order; use quotes for a phrase. Accents and case are ignored. If no exact results exist, similar-name search can recover one-letter mistakes. Names rank ahead of bank metadata. Refresh reuses banks whose size and timestamps have not changed; File → Rebuild from disk rereads everything.\n\nStandard banks show preset names and positions. Plugin-specific banks expose searchable embedded text where available; those matches are not guaranteed preset names. Compressed or encrypted names cannot be decoded.\n\nSelect a result to copy its path or open its folder. Cancel keeps the previous completed index. Clear library removes folder selections and results, never your files."));
     });
     connect(helpMenu->addAction(tr("About")), &QAction::triggered, this, [this] {
-        QMessageBox::about(this, tr("About FXB Viewer"), tr("FXB Viewer 2.0\nSound-bank search and preset discovery.\n\nOriginal project by Shokace / Petar Juric.\nThis application reads preset files; it does not load plugins or play audio."));
+        QMessageBox::about(this, tr("About FXB Viewer"), tr("FXB Viewer 2.1\nSound-bank search and preset discovery.\n\nOriginal project by Shokace / Petar Juric.\nThis application reads preset files; it does not load plugins or play audio."));
     });
     connect(addButton_, &QPushButton::clicked, this, &MainWindow::chooseFolder);
     connect(refreshButton_, &QPushButton::clicked, this, &MainWindow::refreshLibrary);
@@ -182,10 +280,12 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
     connect(clear, &QPushButton::clicked, this, &MainWindow::clearLibrary);
     connect(removeButton_, &QPushButton::clicked, this, &MainWindow::removeSelectedFolder);
     connect(folderList_, &QListWidget::currentRowChanged, this, &MainWindow::updateControls);
-    connect(search_, &QLineEdit::textChanged, this, [this](const QString &text) {
-        searchModel_->setQuery(text);
-        updateCount();
-        showSelection();
+    connect(search_, &QLineEdit::textChanged, this, &MainWindow::updateSearch);
+    connect(namesOnly_, &QCheckBox::toggled, this, &MainWindow::updateSearch);
+    connect(typos_, &QCheckBox::toggled, this, &MainWindow::updateSearch);
+    connect(sortChoice_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int choice) {
+        searchModel_->setRelevanceSort(choice == 0);
+        searchModel_->sort(choice == 2 ? 1 : 0, Qt::AscendingOrder);
     });
     connect(table_->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MainWindow::showSelection);
     connect(table_, &QTableView::doubleClicked, this, &MainWindow::revealSelectedFile);
@@ -208,7 +308,10 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent) : QMainWind
 
     folders_ = settings_->value("library/folders").toStringList();
     folders_.removeDuplicates();
-    folderList_->addItems(folders_);
+    for (const auto &folder : folders_) {
+        auto *item = new QListWidgetItem(QFileInfo(folder).fileName().isEmpty() ? folder : QFileInfo(folder).fileName(), folderList_);
+        item->setToolTip(folder);
+    }
     updateCount();
     updateControls();
     if (!folders_.isEmpty()) QTimer::singleShot(0, this, &MainWindow::refreshLibrary);
@@ -236,7 +339,7 @@ bool MainWindow::addFolder(const QString &path)
     if (canonical.isEmpty()) { status_->setText(tr("Folder is unavailable: %1").arg(path)); return false; }
     if (folders_.contains(canonical)) { status_->setText(tr("That folder is already in the library.")); return false; }
     folders_ += canonical;
-    auto *item = new QListWidgetItem(canonical, folderList_);
+    auto *item = new QListWidgetItem(QFileInfo(canonical).fileName().isEmpty() ? canonical : QFileInfo(canonical).fileName(), folderList_);
     item->setToolTip(canonical);
     saveFolders();
     refreshLibrary();
@@ -250,11 +353,14 @@ void MainWindow::chooseFolder()
     if (!path.isEmpty()) addFolder(path);
 }
 
-void MainWindow::refreshLibrary()
+void MainWindow::refreshLibrary() { startScan(false); }
+void MainWindow::rebuildLibrary() { startScan(true); }
+
+void MainWindow::startScan(bool forceRead)
 {
     if (isScanning() || folders_.isEmpty()) return;
     discardScan_ = false;
-    worker_ = new fxb::ScanWorker(folders_, this);
+    worker_ = new fxb::ScanWorker(folders_, this, model_->searchIndex(), forceRead);
     status_->setText(tr("Discovering banks and presets…"));
     progress_->setRange(0, 0);
     progress_->show();
@@ -268,20 +374,22 @@ void MainWindow::refreshLibrary()
         auto *completed = worker_;
         const auto &result = completed->result();
         if (!discardScan_ && !result.cancelled) {
-            model_->setLibrary(result.entries);
+            if (model_->searchIndex() != result.index) model_->setIndex(result.index);
             indexedFiles_ = result.entries.size();
             issues_ = result.issues;
             for (const auto &entry : result.entries)
                 for (const auto &warning : entry.bank.warnings)
                     issues_ += entry.path + QStringLiteral(": ") + warning;
-            status_->setText(result.discovered == 0 ? tr("No .fxb or .fxp files found in these folders.")
-                : tr("Indexed %1 of %2 files. %3 notice(s). Refresh to pick up changes.")
-                    .arg(indexedFiles_).arg(result.discovered).arg(issues_.size()));
+            QString summary = result.discovered == 0 ? tr("No .fxb or .fxp files found in these folders.")
+                : tr("Indexed %1 of %2 files · %3 notice(s)").arg(indexedFiles_).arg(result.discovered).arg(issues_.size());
+            if (demoMode_) summary += tr(" · %1 reused · %2 read · %3 ms").arg(result.cachedFiles).arg(result.filesRead).arg(result.elapsedMs);
+            status_->setText(summary);
         }
         worker_ = nullptr;
         completed->deleteLater();
         progress_->hide();
         updateCount();
+        if (table_->selectionModel()->selectedRows().isEmpty() && searchModel_->rowCount() > 0) table_->selectRow(0);
         showSelection();
         updateControls();
         emit libraryReady();
@@ -336,6 +444,7 @@ void MainWindow::updateControls()
     addAction_->setEnabled(!scanning);
     refreshButton_->setEnabled(!scanning && !folders_.isEmpty());
     refreshAction_->setEnabled(refreshButton_->isEnabled());
+    rebuildAction_->setEnabled(refreshButton_->isEnabled());
     removeButton_->setEnabled(!scanning && folderList_->currentRow() >= 0);
     cancelButton_->setVisible(scanning);
     cancelButton_->setEnabled(scanning && !discardScan_);
@@ -345,9 +454,25 @@ void MainWindow::updateControls()
     copyButton_->setEnabled(selected);
 }
 
+void MainWindow::updateSearch()
+{
+    searchModel_->setOptions({namesOnly_->isChecked(), typos_->isChecked()});
+    searchModel_->setQuery(search_->text());
+    updateCount();
+    if (searchModel_->rowCount() > 0) table_->selectRow(0);
+    showSelection();
+}
+
 void MainWindow::updateCount()
 {
-    count_->setText(tr("%1 results · %2 indexed files").arg(searchModel_->rowCount()).arg(indexedFiles_));
+    const auto stats = searchModel_->stats();
+    QString text = tr("%1 results · %2 indexed files").arg(searchModel_->rowCount()).arg(indexedFiles_);
+    if (stats.usedTypos) text += tr(" · Similar names — no exact matches");
+    if (demoMode_ && !search_->text().isEmpty()) text += tr(" · %1 ms search").arg(stats.elapsedNanoseconds / 1e6, 0, 'f', 2);
+    count_->setText(text);
+    emptyState_->setVisible(searchModel_->rowCount() == 0);
+    emptyState_->setText(model_->rowCount() == 0 ? tr("Your sounds will appear here. Add a folder to get started.")
+        : tr("No matches. Try fewer words, enable similar names, or search all bank text."));
 }
 
 QString MainWindow::selectedPath() const
@@ -394,7 +519,7 @@ void MainWindow::dropEvent(QDropEvent *event)
         const QString path = fxb::canonicalFolder(url.toLocalFile());
         if (path.isEmpty() || folders_.contains(path)) continue;
         folders_ += path;
-        auto *item = new QListWidgetItem(path, folderList_);
+        auto *item = new QListWidgetItem(QFileInfo(path).fileName().isEmpty() ? path : QFileInfo(path).fileName(), folderList_);
         item->setToolTip(path);
         changed = true;
     }

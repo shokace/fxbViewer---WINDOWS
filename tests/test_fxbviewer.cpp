@@ -1,6 +1,8 @@
 #include <QtTest>
 #include <QAbstractItemModelTester>
 #include <QClipboard>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QCryptographicHash>
 #include <QDesktopServices>
 #include <QDragEnterEvent>
@@ -14,6 +16,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QPlainTextEdit>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTableView>
@@ -21,6 +24,8 @@
 #include <QUrl>
 #include <QtEndian>
 #include "core/bankreader.h"
+#include "core/searchindex.h"
+#include "core/demodata.h"
 #include "core/library.h"
 #include "core/resultmodel.h"
 #include "mainwindow.h"
@@ -249,6 +254,198 @@ private slots:
         search.setQuery("Untitled"); QCOMPARE(search.rowCount(), 2);
         search.setQuery("Podolski"); QCOMPARE(search.rowCount(), 1);
         search.setQuery("recm"); QCOMPARE(search.rowCount(), 2);
+    }
+    void rankedNamesAndUnorderedWords() {
+        auto bank = BankReader::parse(fixture("generated/standard.fxb"));
+        bank.presets = {{"Glass Lead", 1}, {"Lead Glass Harmonics", 2}, {"Glass Lead Wide", 3}};
+        auto metadata = bank; metadata.presets = {{"Unrelated", 1}};
+        ResultModel model;
+        model.setLibrary({{"/banks/Aurora.fxb", bank}, {"/banks/Glass Lead.fxb", metadata}});
+        SearchModel search; search.setSourceModel(&model);
+        search.setQuery("glass lead");
+        QCOMPARE(search.rowCount(), 4);
+        QCOMPARE(search.index(0, 0).data().toString(), QString("1. Glass Lead"));
+        QCOMPARE(search.index(3, 0).data(ResultModel::MatchRole).toString(), QString("Bank name"));
+        search.setQuery("lead glass"); QCOMPARE(search.rowCount(), 4);
+        search.setQuery("\"glass lead\""); QCOMPARE(search.rowCount(), 3);
+        search.setQuery(QString::fromUtf8("“glass lead”")); QCOMPARE(search.rowCount(), 3);
+        search.setOptions({true, true}); QCOMPARE(search.rowCount(), 2);
+        search.setQuery("etoile"); QCOMPARE(search.rowCount(), 0);
+        model.setLibrary({{"/banks/Unicode.fxp", BankReader::parse(fixture("generated/unicode.fxp"))}});
+        search.setQuery("  ETOILE pad  "); QCOMPARE(search.rowCount(), 1);
+        QVERIFY(search.index(0, 0).data().toString().contains(QString::fromUtf8("Étoile")));
+    }
+    void typoRecovery_data() {
+        QTest::addColumn<QString>("query");
+        QTest::newRow("missing-letter") << "glss lead";
+        QTest::newRow("extra-letter") << "glaass lead";
+        QTest::newRow("substitution") << "glass leed";
+        QTest::newRow("transposition") << "galss lead";
+    }
+    void typoRecovery() {
+        QFETCH(QString, query);
+        const auto index = SearchIndex::build({{"/banks/Aurora.fxb", BankReader::parse(fixture("generated/standard.fxb"))}});
+        const auto results = index->search(query);
+        QCOMPARE(results.hits.size(), 1);
+        QVERIFY(results.stats.usedTypos);
+        QCOMPARE(results.hits[0].source, MatchSource::SimilarName);
+        QCOMPARE(index->record(results.hits[0].row).name, QString("Glass Lead"));
+        QVERIFY(index->search(query, {false, false}).hits.isEmpty());
+        QVERIFY(index->search('"' + query + '"').hits.isEmpty());
+    }
+    void conservativeTypoAndSourceLabels() {
+        auto bank = BankReader::parse(fixture("generated/standard.fxb"));
+        bank.presets = {{"Glass Lead", 1}, {"Glaze Lead", 2}, {"1235 Bass", 3}};
+        const auto index = SearchIndex::build({{"/banks/Aurora.fxb", bank},
+            {"/banks/Archive.fxb", BankReader::parse(fixture("generated/opaque.fxb"))}});
+        auto hits = index->search("glass lead");
+        QCOMPARE(hits.hits.size(), 1); QVERIFY(!hits.stats.usedTypos);
+        QVERIFY(index->search("gzzss lead").hits.isEmpty());
+        QVERIFY(index->search("zlx lead").hits.isEmpty());
+        QVERIFY(index->search("1234 bass").hits.isEmpty());
+        hits = index->search("hidden lead");
+        QCOMPARE(hits.hits.size(), 1);
+        QCOMPARE(hits.hits[0].source, MatchSource::EmbeddedText);
+        QVERIFY(index->snippet(hits.hits[0]).contains("Hidden Lead"));
+        QVERIFY(index->search("hidden lead", {true, true}).hits.isEmpty());
+    }
+    void indexedSearchMatchesIndependentLinearOracle() {
+        QVector<LibraryEntry> entries;
+        for (int i = 0; i < 80; ++i) {
+            auto bank = BankReader::parse(fixture("generated/standard.fxb"));
+            bank.presets = {{QString("Velvet Bass %1").arg(i), 1}, {QString("Glass LEAD %1").arg(i), 2}, {"Étoile Pad", 3}};
+            entries += {QString("/banks/Collection_%1.fxb").arg(i), bank};
+        }
+        entries += {"/banks/Archive.fxb", BankReader::parse(fixture("generated/opaque.fxb"))};
+        const auto index = SearchIndex::build(entries);
+        for (const QString query : {"a", "ss", "glass", "velvet", "etoile", "17", "collection", "test", "crystal", "missing", "[.*]"}) {
+            QSet<int> expected;
+            const auto term = SearchIndex::normalize(query);
+            for (int row = 0; row < index->size(); ++row) {
+                const auto &entry = index->entry(row);
+                const QStringList fields{index->record(row).name, QFileInfo(entry.path).fileName(), entry.path,
+                    entry.bank.pluginId, entry.bank.embeddedText};
+                for (const auto &field : fields) if (SearchIndex::normalize(field).contains(term)) { expected.insert(row); break; }
+            }
+            QSet<int> actual;
+            for (const auto &hit : index->search(query, {false, false}).hits) actual.insert(hit.row);
+            QCOMPARE(actual, expected);
+        }
+    }
+    void highDiversityTextFallsBackWithoutLosingMatches() {
+        BankDocument opaque;
+        opaque.format = "FBCh"; opaque.pluginId = "Test";
+        for (char a = 'a'; a <= 'z'; ++a) for (char b = 'a'; b <= 'z'; ++b) for (char c = 'a'; c <= 'z'; ++c)
+            opaque.embeddedText += QString(QChar(a)) + QChar(b) + QChar(c) + '\n';
+        opaque.embeddedText += "Unique Silver Memory";
+        const auto index = SearchIndex::build({{"/banks/Diverse.fxb", opaque}});
+        const auto result = index->search("silver memory");
+        QCOMPARE(result.hits.size(), 1);
+        QCOMPARE(result.hits[0].source, MatchSource::EmbeddedText);
+        QVERIFY(index->snippet(result.hits[0]).contains("Unique Silver Memory"));
+    }
+    void alphabeticalSortIgnoresProgramNumbers() {
+        auto bank = BankReader::parse(fixture("generated/standard.fxb"));
+        bank.presets = {{"Zebra Lead", 1}, {"Amber Lead", 12}};
+        ResultModel model; model.setLibrary({{"/banks/Leads.fxb", bank}});
+        SearchModel search; search.setSourceModel(&model);
+        search.setRelevanceSort(false); search.sort(0, Qt::AscendingOrder);
+        QCOMPARE(search.index(0, 0).data().toString(), QString("12. Amber Lead"));
+        search.sort(0, Qt::DescendingOrder);
+        QCOMPARE(search.index(0, 0).data().toString(), QString("1. Zebra Lead"));
+    }
+    void selectiveQueriesPruneCandidates() {
+        auto bank = BankReader::parse(fixture("generated/standard.fxb"));
+        bank.presets.clear();
+        for (int i = 0; i < 2000; ++i) bank.presets += {QString("Unique patch %1").arg(i, 4, 10, QLatin1Char('0')), i + 1};
+        const auto index = SearchIndex::build({{"/banks/Aurora.fxb", bank}});
+        const auto result = index->search("patch 0137");
+        QCOMPARE(result.hits.size(), 1);
+        QVERIFY(result.stats.candidatesExamined < 10);
+        std::atomic_bool stop{true};
+        QVERIFY(!SearchIndex::build({{"/banks/Aurora.fxb", bank}}, &stop));
+    }
+    void incrementalCacheRefreshAndForcedRebuild() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        const QString first = dir.filePath("a.fxb"), second = dir.filePath("b.fxb");
+        write(first, fixture("generated/standard.fxb")); write(second, fixture("generated/standard.fxb"));
+        std::atomic_bool stop{false};
+        const auto cold = scanFolders({dir.path()}, stop);
+        QCOMPARE(cold.filesRead, 2); QCOMPARE(cold.cachedFiles, 0);
+        ScanCache cache; for (const auto &entry : cold.entries) cache.insert(entry.path, entry);
+        auto warm = scanFolders({dir.path()}, stop, {}, {}, cache);
+        QCOMPARE(warm.filesRead, 0); QCOMPARE(warm.cachedFiles, 2);
+        auto edited = fixture("generated/standard.fxb");
+        edited.replace(184, 10, "Clear Lead");
+        write(first, edited);
+        QFile editedFile(first);
+        QVERIFY(editedFile.open(QIODevice::ReadWrite));
+        QVERIFY(editedFile.setFileTime(QDateTime::fromMSecsSinceEpoch(cold.entries[0].stamp.modified).addSecs(2),
+                                      QFileDevice::FileModificationTime));
+        editedFile.close();
+        warm = scanFolders({dir.path()}, stop, {}, {}, cache);
+        QCOMPARE(warm.filesRead, 1); QCOMPARE(warm.cachedFiles, 1);
+        QCOMPARE(warm.entries[0].bank.presets[0].name, QString("Clear Lead"));
+        write(first, fixture("generated/parameter.fxp"));
+        warm = scanFolders({dir.path()}, stop, {}, {}, cache);
+        QCOMPARE(warm.filesRead, 1); QCOMPARE(warm.cachedFiles, 1);
+        QCOMPARE(warm.entries[0].bank.presets.size(), 1);
+        const auto forced = scanFolders({dir.path()}, stop, {}, {}, cache, true);
+        QCOMPARE(forced.filesRead, 2); QCOMPARE(forced.cachedFiles, 0);
+        QVERIFY(QFile::remove(second));
+        const auto removed = scanFolders({dir.path()}, stop, {}, {}, cache);
+        QCOMPARE(removed.entries.size(), 1);
+        write(first, "broken");
+        const auto broken = scanFolders({dir.path()}, stop, {}, {}, cache);
+        QVERIFY(broken.entries.isEmpty()); QVERIFY(!broken.issues.isEmpty());
+    }
+    void workerReusesUnchangedSearchSnapshot() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        write(dir.filePath("bank.fxb"), fixture("generated/standard.fxb"));
+        ScanWorker first({dir.path()}); first.start();
+        QVERIFY(first.wait(5000)); QVERIFY(first.result().index);
+        auto index = first.result().index;
+        ScanWorker second({dir.path()}, nullptr, index); second.start(); QVERIFY(second.wait(5000));
+        QCOMPARE(second.result().index, index);
+        QCOMPARE(second.result().filesRead, 0);
+        QCOMPARE(second.result().cachedFiles, 1);
+        ScanWorker forced({dir.path()}, nullptr, index, true); forced.start(); QVERIFY(forced.wait(5000));
+        QVERIFY(forced.result().index != index);
+        QCOMPARE(forced.result().filesRead, 1);
+    }
+    void demoAndSmartSearchControls() {
+        QTemporaryDir dir; QVERIFY(dir.isValid());
+        QString error;
+        QVERIFY2(createDemoLibrary(dir.path() + "/samples", 2, 1, &error), qPrintable(error));
+        QVERIFY(!createDemoLibrary(dir.path() + "/samples", 2, 1, &error)); // Never overwrite.
+        MainWindow window(dir.filePath("demo.ini"), nullptr, true); window.show();
+        QVERIFY(window.addFolder(dir.path() + "/samples"));
+        QTRY_VERIFY_WITH_TIMEOUT(!window.isScanning(), 10000);
+        auto *search = window.findChild<QLineEdit *>("searchInput");
+        auto *table = window.findChild<QTableView *>("resultsTable");
+        QCOMPARE(table->model()->rowCount(), 257);
+        search->setText("glass leed");
+        QVERIFY(table->model()->rowCount() > 0);
+        QVERIFY(window.findChild<QLabel *>("resultCount")->text().contains("Similar names"));
+        window.findChild<QCheckBox *>("allowTypos")->setChecked(false);
+        QCOMPARE(table->model()->rowCount(), 0);
+        search->setText("glass lead");
+        table->selectRow(1);
+        const QPersistentModelIndex selected(table->model()->index(1, 0));
+        window.refreshLibrary(); QTRY_VERIFY_WITH_TIMEOUT(!window.isScanning(), 5000);
+        QVERIFY(selected.isValid());
+        QCOMPARE(table->selectionModel()->selectedRows().first(), QModelIndex(selected));
+        search->setText("hidden lead"); QCOMPARE(table->model()->rowCount(), 1);
+        const QString preview = window.findChild<QPlainTextEdit *>("resultDetails")->toPlainText();
+        QVERIFY(preview.startsWith("Embedded text\nHidden Lead"));
+        QVERIFY(preview.size() < 5000);
+        window.findChild<QCheckBox *>("namesOnly")->setChecked(true);
+        QCOMPARE(table->model()->rowCount(), 0);
+        window.findChild<QComboBox *>("sortChoice")->setCurrentIndex(2);
+        window.refreshLibrary(); QTRY_VERIFY_WITH_TIMEOUT(!window.isScanning(), 5000);
+        QVERIFY(window.findChild<QLabel *>("statusText")->text().contains("3 reused"));
+        window.rebuildLibrary(); QTRY_VERIFY_WITH_TIMEOUT(!window.isScanning(), 5000);
+        QVERIFY(window.findChild<QLabel *>("statusText")->text().contains("3 read"));
     }
     void uiSearchClipboardRevealAndClear() {
         QTemporaryDir dir; QVERIFY(dir.isValid());

@@ -31,15 +31,37 @@ format, plugin ID, expected program names, and one-based program positions. See
 [fixture provenance](fixtures/README.md). Tests exercise real ReaComp, Massive,
 and Podolski data in addition to independently constructed records.
 
-## Local results (2026-11-13)
+## Search, cache, and demo coverage
 
-- Ubuntu x86-64, GCC 15, Qt 5.15.18: **33 passed, 0 failed, 0 skipped**.
-- Same environment, Qt 6.10.2: **33 passed, 0 failed, 0 skipped**.
+The expanded suite also checks:
+
+- Exact-name ranking above prefix/word matches and bank metadata; unordered terms;
+  straight/typographic quoted phrases; accent folding; names-only scope.
+- Missing/extra letters, substitutions, and transpositions; disabling typo recovery;
+  no expansion when exact hits exist; no numeric-token guessing.
+- Indexed results against an independent linear oracle, including short queries,
+  reference banks, and candidate pruning for selective queries.
+- High-diversity private text falls back without dropping matches when posting
+  budgets are exceeded. This bounds index growth without relying on timing limits.
+- Warm refresh reads zero payloads; changed-size and same-size edits invalidate
+  cached banks; removal/corruption does not retain stale results; force rebuild
+  rereads all banks; unchanged workers reuse the same immutable search snapshot.
+- A–Z sorting ignores program numbers. Similar-name and names-only UI controls,
+  refresh selection preservation, bounded previews retaining the match at the top,
+  actual demo-file parsing, and refusal to overwrite demo data are exercised.
+
+The reference corpus and its hashes remain unchanged. See the reproducible
+[benchmark](../benchmarks/README.md) and [live demo instructions](../demo/README.md).
+
+## Local results (2026-11-13, updated search engine)
+
+- Ubuntu x86-64, GCC 15, Qt 5.15.18: **46 passed, 0 failed, 0 skipped**.
+- Same environment, Qt 6.10.2: **46 passed, 0 failed, 0 skipped**.
 - Qt 6 build with `-fsanitize=address,undefined -fno-omit-frame-pointer`:
-  **33 passed, 0 failed, 0 skipped**, with leak detection enabled and no sanitizer
+  **46 passed, 0 failed, 0 skipped**, with leak detection enabled and no sanitizer
   diagnostics. Both sanitizer runtimes were verified linked.
-- Live Qt 6 application launched under GDB; its 200%-scale desktop capture was
-  inspected for clipping. Large-font populated results were also captured from
+- Live Qt 6 application and isolated demo launched; actual 200%-scale desktop captures
+  were inspected for clipping, spelling recovery, and embedded-text previews. Large-font populated results were also captured from
   the UI test. Set `FXBVIEWER_TEST_SCREENSHOT=/tmp/fxbviewer.png` when running the
   suite to capture that populated test window.
 - Source diff whitespace check, launcher shell syntax, fixture hashes, and

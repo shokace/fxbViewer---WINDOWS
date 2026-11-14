@@ -1,0 +1,49 @@
+{
+    "files": 320,
+    "prepare_ms": 48.410197,
+    "qt": "6.10.2",
+    "queries": [
+        {
+            "matches": 2731,
+            "median_ms": 31.893956,
+            "query": "glass lead"
+        },
+        {
+            "matches": 1366,
+            "median_ms": 31.172273,
+            "query": "velvet"
+        },
+        {
+            "matches": 1365,
+            "median_ms": 24.771281,
+            "query": "plucked moon"
+        },
+        {
+            "matches": 1366,
+            "median_ms": 28.068897,
+            "query": "sub bass"
+        },
+        {
+            "matches": 1366,
+            "median_ms": 25.505338,
+            "query": "silver bell"
+        },
+        {
+            "matches": 0,
+            "median_ms": 24.399684,
+            "query": "unfindablexyz"
+        },
+        {
+            "matches": 64,
+            "median_ms": 17.291527,
+            "query": "chorale"
+        },
+        {
+            "matches": 129,
+            "median_ms": 49.78291,
+            "query": "042"
+        }
+    ],
+    "rows": 32832,
+    "scan_ms": 136.841838
+}

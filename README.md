@@ -7,23 +7,26 @@ No plugins are loaded, and your preset files are never modified.
 The original utility was written by Shokace / Petar Juric to find Sylenth patches.
 This update replaces the manual arrays, text-line scanning, blocking event handlers,
 and fixed-position UI with separate readers, background indexing, and resizable
-Qt Widgets layouts. Qt 6 is preferred; Qt 5.15 remains supported.
+Qt Widgets layouts. Search now uses an indexed, relevance-ranked engine. Qt 6 is preferred; Qt 5.15 remains supported.
 
 ## Use
 
 1. Choose **Add folder** or drop folders onto the window. Subfolders are scanned.
-2. Type into the search box. Matching is literal, case-insensitive, and immediate
-   against the completed in-memory index. Blank searches show all results.
+2. Type into the search box. Words can appear in any order. Case and accents are
+   ignored; quotes keep words together as a phrase. Best name matches appear first.
+   Blank searches show all results. **Find similar names** tries one edit per word
+   only when no exact matches exist. **Names only** excludes bank metadata.
 3. Select a result to see its format, notices, and embedded text. Use **Copy path**
    or **Open containing folder** to locate the bank in your synth or DAW.
-4. Use **Refresh library** after files change. Folder selections survive restarts;
-   the app rebuilds its index at launch so results are not persisted stale.
+4. Use **Refresh library** after files change. Unchanged banks and their search
+   index are reused in memory. **File → Rebuild from disk** bypasses that cache.
+   Folder selections survive restarts; the index is rebuilt at launch.
 
 Overlapping folders and file symlinks are deduplicated by canonical path. Directory
 symlinks are not followed. Cancelling an index retains the previous completed
 index. Removing a folder clears old matches before rebuilding. **Clear library**
 removes folder selections and results, not files. Unreadable or malformed files
-appear under **View issues**. Closing the app cancels and joins its worker safely.
+appear under **Review notices**. Closing the app cancels and joins its worker safely.
 
 ## Format support and limits
 
@@ -57,6 +60,8 @@ On Ubuntu, install `build-essential qt6-base-dev gdb` (or `qtbase5-dev qt5-qmake
 for Qt 5), then:
 
 ```sh
+./dev.sh demo       # Try the isolated sample library
+./dev.sh benchmark  # Reproduce the performance comparison
 ./dev.sh build
 ./dev.sh run
 ./dev.sh debug
@@ -112,6 +117,41 @@ its upstream ISC license; no external parser code is incorporated.
 
 - `core/bankreader.*`: bounded VST2 reader and embedded-text extraction; no widgets.
 - `core/library.*`: discovery, canonical deduplication, indexing, cancellation.
-- `core/resultmodel.*`: result rows and literal search filtering.
+- `core/searchindex.*`: immutable trigram postings, relevance ranking, typo candidates.
+- `core/resultmodel.*`: result rows, search filtering, contextual previews, sorting.
+- `core/demodata.*`: deterministic synthetic VST2 bank generator.
 - `mainwindow.*`: layouts, library management, settings, and desktop actions.
 - `tests/`: independent reference data and parser, scanner, model, and UI tests.
+
+## Smarter search and faster refresh
+
+- `glass lead` and `lead glass` find the same set of matches. Exact names and
+  phrase/prefix matches rank above scattered words, bank names, or private text.
+- `etoile` finds `Étoile`. Hyphens and underscores act as word separators.
+- `"glass lead"` requires that phrase; straight and typographic quotes work.
+- `glass leed` can recover `Glass Lead` when no exact result exists. Similar-name
+  results are labeled; private chunk text is never guessed into a preset name.
+- The **Match source** column explains each hit, and the preview shows relevant
+  context. Previews are bounded without discarding the matched snippet.
+- Preset-name A–Z sorting ignores the displayed program number. The table and
+  preview have a draggable divider, and unchanged refreshes preserve selection.
+
+Search precomputes normalized text and three-character posting lists on the
+indexing worker. It intersects the smallest candidate lists before checking exact
+contents, so it avoids scanning every full bank on each keystroke. One/two-character
+queries use direct verification. Highly diverse private chunks fall back to direct
+verification when posting budgets are reached; they remain searchable. Typo lookup
+uses deletion signatures and verifies one insertion, deletion, substitution, or
+adjacent transposition per word. It applies to name words of 4–32 characters, with
+a 20,000-word vocabulary cap; exact search remains complete within the file/text
+limits above. A query is limited to 256 characters.
+
+Refresh cache keys use canonical path, byte size, modification time, and metadata
+change time. This is an in-memory optimization, not a content-hash guarantee on
+filesystems with coarse or preserved timestamps. **Rebuild from disk** always
+rereads files. Changed/deleted files invalidate their results, failed reads are
+retried, and files changed during reading are reported for retry. A cancelled
+refresh never replaces the completed index.
+
+See [measured performance and tradeoffs](benchmarks/README.md),
+[the demo walkthrough](demo/README.md), and [verification](tests/README.md).

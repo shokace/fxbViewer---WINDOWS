@@ -1,0 +1,79 @@
+{
+    "build": "Release -O2; model/filter/sort timing, not rendering; generated files already in OS cache",
+    "corpus": "256 synthetic parameter banks x 128 presets, plus 64 opaque 128 KiB banks",
+    "files": 320,
+    "initial_read_ms": 140.110728,
+    "initial_search_index_ms": 206.097246,
+    "iterations_per_query": 15,
+    "qt": "6.10.2",
+    "queries": [
+        {
+            "candidates_checked": 2731,
+            "indexed_median_ms": 2.273255,
+            "linear_median_ms": 24.286722,
+            "matches": 2731,
+            "query": "glass lead",
+            "speedup": 10.683676930216805
+        },
+        {
+            "candidates_checked": 1366,
+            "indexed_median_ms": 1.232936,
+            "linear_median_ms": 29.71991,
+            "matches": 1366,
+            "query": "velvet",
+            "speedup": 24.10499004003452
+        },
+        {
+            "candidates_checked": 1365,
+            "indexed_median_ms": 1.189223,
+            "linear_median_ms": 22.75077,
+            "matches": 1365,
+            "query": "plucked moon",
+            "speedup": 19.130785395169788
+        },
+        {
+            "candidates_checked": 1366,
+            "indexed_median_ms": 1.186668,
+            "linear_median_ms": 25.503147,
+            "matches": 1366,
+            "query": "sub bass",
+            "speedup": 21.491391863604644
+        },
+        {
+            "candidates_checked": 1366,
+            "indexed_median_ms": 1.143676,
+            "linear_median_ms": 22.812397,
+            "matches": 1366,
+            "query": "silver bell",
+            "speedup": 19.94655566786398
+        },
+        {
+            "candidates_checked": 0,
+            "indexed_median_ms": 0.329447,
+            "linear_median_ms": 22.808239,
+            "matches": 0,
+            "query": "unfindablexyz",
+            "speedup": 69.23189162444946
+        },
+        {
+            "candidates_checked": 64,
+            "indexed_median_ms": 0.376576,
+            "linear_median_ms": 15.747353,
+            "matches": 64,
+            "query": "chorale",
+            "speedup": 41.81719759092454
+        },
+        {
+            "candidates_checked": 129,
+            "indexed_median_ms": 0.38897,
+            "linear_median_ms": 52.105665,
+            "matches": 129,
+            "query": "042",
+            "speedup": 133.95805589119985
+        }
+    ],
+    "rows": 32832,
+    "unchanged_refresh_files_read": 0,
+    "unchanged_refresh_files_reused": 320,
+    "unchanged_refresh_median_ms": 4.987591
+}

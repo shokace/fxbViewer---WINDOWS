@@ -3,9 +3,10 @@ set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 mode="${1:-run}"
+if [[ $# -gt 0 ]]; then shift; fi
 case "$mode" in
-    build|run|debug|test) ;;
-    *) echo "Usage: $0 [build|run|debug|test]" >&2; exit 2 ;;
+    build|run|debug|test|demo|benchmark) ;;
+    *) echo "Usage: $0 [build|run|debug|test|demo|benchmark]" >&2; exit 2 ;;
 esac
 
 local_tools="${HOME}/.local/share/fxbviewer-dev"
@@ -33,19 +34,27 @@ if [[ "$qt_libs" == "$local_tools/"* ]]; then
 fi
 mkdir -p "$build_dir"
 cd "$build_dir"
+if [[ "$mode" == benchmark ]]; then
+    mkdir -p benchmark
+    cd benchmark
+    "$qmake_bin" "$repo_dir/benchmarks/benchmarks.pro" CONFIG+=release CONFIG-=debug "${qmake_args[@]}" >&2
+    make -j"${JOBS:-4}" >&2
+    exec ./fxbviewer_benchmark "$@"
+fi
 if [[ "$mode" == test ]]; then
     mkdir -p tests
     cd tests
     "$qmake_bin" "$repo_dir/tests/tests.pro" CONFIG+=debug CONFIG-=release "${qmake_args[@]}"
     make -j"${JOBS:-4}"
     export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
-    exec ./fxbviewer_tests
+    exec ./fxbviewer_tests "$@"
 fi
 "$qmake_bin" "$repo_dir/fxbViewer.pro" CONFIG+=debug CONFIG-=release "${qmake_args[@]}"
 make -j"${JOBS:-4}"
 case "$mode" in
     build) echo "Built with Qt $qt_version: $build_dir/fxbViewer" ;;
-    run) exec ./fxbViewer ;;
+    run) exec ./fxbViewer "$@" ;;
+    demo) exec ./fxbViewer --demo "$@" ;;
     debug)
         exec gdb -q \
             -ex 'set debuginfod enabled off' \

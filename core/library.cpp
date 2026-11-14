@@ -1,10 +1,18 @@
 #include "library.h"
+#include "searchindex.h"
+#include <QDateTime>
+#include <QElapsedTimer>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QSet>
 #include <algorithm>
 
 namespace fxb {
+namespace {
+FileStamp stampFor(const QFileInfo &info) {
+    return {info.size(), info.lastModified().toMSecsSinceEpoch(), info.metadataChangeTime().toMSecsSinceEpoch()};
+}
+}
 QString canonicalFolder(const QString &path)
 {
     const QFileInfo info(path);
@@ -12,8 +20,10 @@ QString canonicalFolder(const QString &path)
 }
 
 ScanResult scanFolders(const QStringList &folders, const std::atomic_bool &cancelled,
-                       const std::function<void(int, int)> &progress, const ScanLimits &limits)
+                       const std::function<void(int, int)> &progress, const ScanLimits &limits,
+                       const ScanCache &cache, bool forceRead)
 {
+    QElapsedTimer timer; timer.start();
     ScanResult result;
     QSet<QString> files;
     QSet<QString> visitedFolders;
@@ -63,7 +73,21 @@ ScanResult scanFolders(const QStringList &folders, const std::atomic_bool &cance
     int presetBudget = limits.presets;
     for (int i = 0; i < paths.size(); ++i) {
         if (cancelled.load()) { result.cancelled = true; return result; }
-        BankDocument bank = BankReader::readFile(paths[i]);
+        QFileInfo info(paths[i]);
+        const FileStamp stamp = stampFor(info);
+        const auto cached = cache.constFind(paths[i]);
+        BankDocument bank;
+        if (!forceRead && info.isReadable() && cached != cache.constEnd()
+            && stamp.bytes >= 0 && stamp == cached->stamp && cached->bank.isValid()) {
+            bank = cached->bank;
+            ++result.cachedFiles;
+        } else {
+            bank = BankReader::readFile(paths[i]);
+            ++result.filesRead;
+            info.refresh();
+            if (bank.isValid() && !(stampFor(info) == stamp))
+                bank.error = QStringLiteral("File changed while being indexed. Refresh to retry.");
+        }
         if (!bank.isValid()) result.issues += QStringLiteral("%1: %2").arg(paths[i], bank.error);
         else {
             const qint64 characters = bank.embeddedText.size();
@@ -73,21 +97,37 @@ ScanResult scanFolders(const QStringList &folders, const std::atomic_bool &cance
             }
             textBudget -= characters;
             presetBudget -= bank.presets.size();
-            result.entries.push_back({paths[i], std::move(bank)});
+            result.entries.push_back({paths[i], std::move(bank), stamp});
         }
         if (progress && (i % 16 == 0 || i + 1 == paths.size())) progress(i + 1, paths.size());
     }
     result.cancelled = cancelled.load();
+    result.elapsedMs = timer.elapsed();
     return result;
 }
 
-ScanWorker::ScanWorker(QStringList folders, QObject *parent)
-    : QThread(parent), folders_(std::move(folders)) {}
+ScanWorker::ScanWorker(QStringList folders, QObject *parent, std::shared_ptr<const SearchIndex> previous, bool forceRead)
+    : QThread(parent), folders_(std::move(folders)), previous_(std::move(previous)), forceRead_(forceRead) {}
 
 void ScanWorker::run()
 {
+    QElapsedTimer timer; timer.start();
+    ScanCache cache;
+    if (previous_) for (const auto &entry : previous_->entries()) cache.insert(entry.path, entry);
     result_ = scanFolders(folders_, cancelled_, [this](int completed, int total) {
         emit progress(completed, total);
-    });
+    }, {}, cache, forceRead_);
+    if (!result_.cancelled) {
+        bool unchanged = previous_ && result_.filesRead == 0 && previous_->bankCount() == result_.entries.size();
+        if (unchanged) for (int i = 0; i < result_.entries.size(); ++i)
+            if (result_.entries[i].path != previous_->entries()[i].path) { unchanged = false; break; }
+        if (unchanged) result_.index = previous_;
+        else {
+            emit progress(0, 0);
+            result_.index = SearchIndex::build(result_.entries, &cancelled_);
+        }
+    }
+    result_.cancelled = result_.cancelled || cancelled_.load();
+    result_.elapsedMs = timer.elapsed();
 }
 }
