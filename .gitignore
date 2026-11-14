@@ -1,0 +1,14 @@
+# Local Qt Creator settings and generated build output
+*.pro.user*
+*.user
+/build*/
+Makefile*
+.qmake.stash
+moc_*.cpp
+ui_*.h
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk
+__pycache__/

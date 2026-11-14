@@ -1,0 +1,105 @@
+[
+  {
+    "file": "generated/standard.fxb",
+    "sha256": "c377a76f53c0c042fb895030384450b7b53e1a8b95a1989d46ae94f3121d4603",
+    "format": "FxBk",
+    "plugin": "Test",
+    "names": [
+      "Glass Lead",
+      "Deep Bass"
+    ]
+  },
+  {
+    "file": "generated/parameter.fxp",
+    "sha256": "aef49f70839594de308a8f249d9ed9f22816dd717a8da3e18d95848cc943652f",
+    "format": "FxCk",
+    "plugin": "Test",
+    "names": [
+      "Glass Lead"
+    ]
+  },
+  {
+    "file": "generated/chunk.fxp",
+    "sha256": "113336bd502b43f83bc94dd92a752652ca18366f025f8854f280b756ca868827",
+    "format": "FPCh",
+    "plugin": "Test",
+    "names": [
+      "Warm Pad"
+    ]
+  },
+  {
+    "file": "generated/unicode.fxp",
+    "sha256": "cef34507680e84cbc974c321ec424a2606160f212552fec160b6cb6136c70e5e",
+    "format": "FxCk",
+    "plugin": "Test",
+    "names": [
+      "Étoile Pad"
+    ]
+  },
+  {
+    "file": "generated/latin1.fxp",
+    "sha256": "a22e9423db19b483b97f3df946b183e63b820cbbaac429e91599fa6ec2ebfdef",
+    "format": "FxCk",
+    "plugin": "Test",
+    "names": [
+      "Crème Lead"
+    ]
+  },
+  {
+    "file": "generated/empty.fxb",
+    "sha256": "07fa722782960601976220e40909a7af395409806651cbc91ea8313cfdd1ca59",
+    "format": "FxBk",
+    "plugin": "Test",
+    "names": []
+  },
+  {
+    "file": "generated/opaque.fxb",
+    "sha256": "aa260b9951a0bbac7cbf253682377f2e1a3e65248d27ed3f1acfdfefba15f335",
+    "format": "FBCh",
+    "plugin": "Test",
+    "names": []
+  },
+  {
+    "file": "reference/rea-comp.FXB",
+    "sha256": "1334524b6547ebd36467f68514e6fa08d50b3099a4a86f37cf6cacb991fbbc00",
+    "format": "FxBk",
+    "plugin": "recm",
+    "names": [
+      ""
+    ]
+  },
+  {
+    "file": "reference/rea-comp.FXP",
+    "sha256": "0f7bfc9d603d30d16d2ce20fc8d09f9262aa58793c4fd7fa215c1376295f776f",
+    "format": "FxCk",
+    "plugin": "recm",
+    "names": [
+      ""
+    ]
+  },
+  {
+    "file": "reference/massive-test-patch.FXP",
+    "sha256": "dad4a1fe7b240f7147ca059cd4f7a829db3e0f463a42f7179b21696df5975b85",
+    "format": "FPCh",
+    "plugin": "NiMa",
+    "names": [
+      "Untitled"
+    ]
+  },
+  {
+    "file": "reference/massive-test-bank.FXB",
+    "sha256": "52b67bab4d0361591888c33d75a16da91100249eefd88ed981eb67166d98a3a9",
+    "format": "FBCh",
+    "plugin": "NiMa",
+    "names": []
+  },
+  {
+    "file": "reference/podolski-pad.fxp",
+    "sha256": "9d444efce1d4d9ad6c9e61cc5e69660ed869ee83e31bc36ff3b3263999baea3c",
+    "format": "FPCh",
+    "plugin": "Podo",
+    "names": [
+      "initialize"
+    ]
+  }
+]

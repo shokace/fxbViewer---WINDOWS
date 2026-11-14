@@ -1,0 +1,53 @@
+name: Build and test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        qt: [5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          if [ '${{ matrix.qt }}' = 6 ]; then
+            sudo apt-get install -y build-essential qt6-base-dev
+            echo 'QMAKE=qmake6' >> "$GITHUB_ENV"
+          else
+            sudo apt-get install -y build-essential qtbase5-dev qt5-qmake
+            echo 'QMAKE=qmake' >> "$GITHUB_ENV"
+          fi
+      - run: ./dev.sh build
+      - run: ./dev.sh test
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          cache: true
+      - name: Build and test with MSVC
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          if errorlevel 1 exit /b 1
+          mkdir build
+          cd build
+          qmake ..\fxbViewer.pro CONFIG+=release CONFIG-=debug
+          if errorlevel 1 exit /b 1
+          nmake
+          if errorlevel 1 exit /b 1
+          mkdir tests
+          cd tests
+          qmake ..\..\tests\tests.pro CONFIG+=release CONFIG-=debug
+          if errorlevel 1 exit /b 1
+          nmake
+          if errorlevel 1 exit /b 1
+          set QT_QPA_PLATFORM=offscreen
+          release\fxbviewer_tests.exe
+          if errorlevel 1 exit /b 1

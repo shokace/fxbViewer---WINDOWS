@@ -1,43 +1,70 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QMainWindow>
-#include <QtCore>
-#include <QThread>
+#include <memory>
+#include "core/library.h"
 
-namespace Ui {
-class MainWindow;
-}
+class QSettings;
+class QListWidget;
+class QLineEdit;
+class QLabel;
+class QPushButton;
+class QProgressBar;
+class QTableView;
+class QPlainTextEdit;
+class QAction;
+namespace fxb { class ResultModel; class SearchModel; }
 
-class MainWindow : public QMainWindow
-{
+class MainWindow final : public QMainWindow {
     Q_OBJECT
-
 public:
-    explicit MainWindow(QWidget *parent = 0);
-    ~MainWindow();
-
-private slots:
-    void on_folderButton_clicked();
-
-    void on_startButton_clicked();
-
-    void on_lineEdit_cursorPositionChanged(int arg1, int arg2);
-
-    void on_pushButton_clicked();
-
-    void on_clearSButton_clicked();
-
-    void ShowContextMenu(const QPoint&);
-
-    void on_actionAbout_triggered();
-
-    void on_actionOpen_triggered();
-
-    void on_actionOpen_File_Location_triggered();
-
+    explicit MainWindow(const QString &settingsPath = {}, QWidget *parent = nullptr);
+    ~MainWindow() override;
+    bool addFolder(const QString &path);
+    QStringList folders() const { return folders_; }
+    bool isScanning() const { return worker_ != nullptr; }
+public slots:
+    void refreshLibrary();
+    void cancelScan();
+    void clearLibrary();
+    void removeSelectedFolder();
+    void revealSelectedFile();
+    void copySelectedPath();
+signals:
+    void libraryReady();
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 private:
-    Ui::MainWindow *ui;
-};
+    void chooseFolder();
+    void saveFolders();
+    void updateControls();
+    void updateCount();
+    void showSelection();
+    QString selectedPath() const;
 
-#endif // MAINWINDOW_H
+    std::unique_ptr<QSettings> settings_;
+    QStringList folders_;
+    fxb::ScanWorker *worker_ = nullptr;
+    bool discardScan_ = false;
+    int indexedFiles_ = 0;
+    QStringList issues_;
+    fxb::ResultModel *model_;
+    fxb::SearchModel *searchModel_;
+    QListWidget *folderList_;
+    QLineEdit *search_;
+    QTableView *table_;
+    QPlainTextEdit *details_;
+    QLabel *status_;
+    QLabel *count_;
+    QProgressBar *progress_;
+    QPushButton *addButton_;
+    QPushButton *removeButton_;
+    QPushButton *refreshButton_;
+    QPushButton *cancelButton_;
+    QPushButton *revealButton_;
+    QPushButton *copyButton_;
+    QPushButton *issuesButton_;
+    QAction *addAction_;
+    QAction *refreshAction_;
+};
