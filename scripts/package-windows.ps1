@@ -21,7 +21,7 @@ $stage = Join-Path $OutputDirectory $name
 if (Test-Path $stage) { throw "Refusing to overwrite existing package directory: $stage" }
 New-Item -ItemType Directory $stage | Out-Null
 Copy-Item $Executable (Join-Path $stage 'fxbViewer.exe')
-& (Join-Path $qtBins 'windeployqt.exe') --release --no-translations --no-plugins --no-opengl-sw --no-system-d3d-compiler --no-compiler-runtime (Join-Path $stage 'fxbViewer.exe')
+& (Join-Path $qtBins 'windeployqt.exe') --release --no-translations --no-plugins --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --no-network --no-compiler-runtime (Join-Path $stage 'fxbViewer.exe')
 if ($LASTEXITCODE -ne 0) { throw 'windeployqt failed' }
 New-Item -ItemType Directory (Join-Path $stage 'platforms') | Out-Null
 Copy-Item (Join-Path $qtPlugins 'platforms/qwindows.dll') (Join-Path $stage 'platforms')

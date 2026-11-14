@@ -67,10 +67,9 @@ The reference corpus and its hashes remain unchanged. See the reproducible
 - Source diff whitespace check, launcher shell syntax, fixture hashes, and
   workflow YAML checked.
 
-The Windows MSVC job in `.github/workflows/build.yml` is configured but has not
-been executed in this Linux session. No remote CI success or Windows runtime
-verification is claimed. No real Sylenth-specific fixture is bundled; opaque
-chunk searching is tested, but universal Sylenth preset decoding is not claimed.
+Windows MSVC builds and regression tests also run in GitHub Actions. Current
+release packaging and extracted-application smoke results are recorded per
+commit in the [Build and test runs](https://github.com/shokace/fxbViewer---WINDOWS/actions/workflows/build.yml).
 
 ## Reproduce sanitizer checks
 
