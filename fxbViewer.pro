@@ -7,6 +7,7 @@ HEADERS += mainwindow.h
 include(core/core.pri)
 
 win32 {
+    RC_ICONS = assets/fxbviewer.ico
     QMAKE_TARGET_PRODUCT = FXB Viewer
     QMAKE_TARGET_DESCRIPTION = FXB and FXP preset search
     QMAKE_TARGET_COMPANY = Petar Juric

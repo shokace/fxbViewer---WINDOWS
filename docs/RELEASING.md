@@ -73,3 +73,9 @@ Install/update is ZIP extraction to a new folder; rollback is launching the prio
 folder. No in-place migration or destructive uninstall is performed. Normal
 instances share per-user settings (last writer wins); demo/smoke settings are
 isolated and disposable. There is no telemetry or background network service.
+
+The SDK install uses pinned aqt 3.3.0 with a narrowly scoped repository-layout
+adapter in `scripts/install-qt-windows.py`: Qt 6.11.3 separates MSVC metadata into
+`qt6_6113_msvc2022_64`. Upstream checksum verification and relocation stay enabled.
+Review/remove the adapter when updating Qt or aqt; it deliberately rejects an
+unreviewed version change. Only the qtbase and qttools SDK archives are installed.

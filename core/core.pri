@@ -5,3 +5,4 @@ HEADERS += $$PWD/bankreader.h $$PWD/library.h $$PWD/resultmodel.h $$PWD/searchin
 
 VERSION = $$cat($$PWD/../VERSION)
 DEFINES += FXBVIEWER_VERSION=\\\"$$VERSION\\\"
+RESOURCES += $$PWD/../assets/resources.qrc

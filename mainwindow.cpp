@@ -84,6 +84,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     sideLayout->addWidget(new QLabel(tr("LIBRARY FOLDERS")));
     folderList_ = new QListWidget;
     folderList_->setObjectName("folderList");
+    folderList_->setAccessibleName(tr("Library folders"));
     folderList_->setMinimumWidth(180);
     sideLayout->addWidget(folderList_);
     removeButton_ = new QPushButton(tr("Remove folder"));
@@ -117,6 +118,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     typos_->setToolTip(tr("If no exact matches are found, try one-letter spelling differences in preset names."));
     sortChoice_ = new QComboBox;
     sortChoice_->setObjectName("sortChoice");
+    sortChoice_->setAccessibleName(tr("Sort results"));
     sortChoice_->addItems({tr("Best matches"), tr("Preset A–Z"), tr("Bank A–Z")});
     options->addWidget(namesOnly_);
     options->addWidget(typos_);
@@ -144,6 +146,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     searchModel_->setSourceModel(model_);
     table_ = new QTableView;
     table_->setObjectName("resultsTable");
+    table_->setAccessibleName(tr("Preset search results"));
     table_->setModel(searchModel_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -166,6 +169,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     resultsSplit->addWidget(table_);
     details_ = new QPlainTextEdit;
     details_->setObjectName("resultDetails");
+    details_->setAccessibleName(tr("Selected result details"));
     details_->setReadOnly(true);
     details_->setMinimumHeight(110);
     details_->setMaximumBlockCount(1500);
@@ -196,6 +200,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     auto *statusLine = new QHBoxLayout;
     status_ = new QLabel(tr("Add a folder to start building your library."));
     status_->setObjectName("statusText");
+    status_->setTextFormat(Qt::PlainText);
     status_->setWordWrap(true);
     issuesButton_ = new QPushButton(tr("Review notices"));
     issuesButton_->setObjectName("viewIssues");
@@ -204,6 +209,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
     layout->addLayout(statusLine);
     settingsWarning_ = new QLabel;
     settingsWarning_->setObjectName("settingsWarning");
+    settingsWarning_->setTextFormat(Qt::PlainText);
     settingsWarning_->setWordWrap(true);
     settingsWarning_->hide();
     layout->addWidget(settingsWarning_);
@@ -238,7 +244,7 @@ MainWindow::MainWindow(const QString &settingsPath, QWidget *parent, bool demoMo
         QComboBox QAbstractItemView { background: #203448; selection-background-color: #356050; }
         QCheckBox { spacing: 7px; }
         QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid #5b798c; border-radius: 3px; background: #172737; }
-        QCheckBox::indicator:checked { background: #6ad8b9; border-color: #6ad8b9; }
+        QCheckBox::indicator:checked { background: #6ad8b9; border-color: #6ad8b9; image: url(:/check.png); }
         QProgressBar { border: 1px solid #36536a; border-radius: 4px; background: #152332; text-align: center; }
         QProgressBar::chunk { background: #397e6a; }
         QSplitter::handle { background: #203246; }

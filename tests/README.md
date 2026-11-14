@@ -91,3 +91,17 @@ QT_QPA_PLATFORM=offscreen ASAN_OPTIONS=detect_leaks=1 \
 On this workstation's unpacked user-local Qt installation, also supply
 `QMAKE_LIBDIR+=<Qt library directory>` to qmake and that directory in
 `LD_LIBRARY_PATH`, as `dev.sh` does for ordinary tests.
+
+## Production hardening (2.2.0)
+
+The suite now has **52 passing cases** locally on Qt 5.15.18 and Qt 6.10.2,
+including ASan/UBSan with leak detection. New checks cover pre-cancelled reads,
+non-regular files (including a Unix FIFO), oversized bank preset counts, 3,000
+deterministic parser mutations, traversal/notice budgets, normalized context
+across lines, preference persistence and settings-write errors.
+
+CI also runs the executable's four-search `--smoke-test` on Linux and validates
+the actual Windows ZIP on a separate runner. It checks extracted file hashes,
+native screenshots, loaded Qt/platform/CRT module paths and a nonzero failure
+exit for invalid output. See [release gates](../docs/RELEASING.md). The earlier
+results above describe the 2.1 search-engine baseline, not the release package.

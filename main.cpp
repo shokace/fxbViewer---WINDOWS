@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QIcon>
 #include <QFile>
 #include <QSaveFile>
 #include <QJsonArray>
@@ -21,6 +22,7 @@ int main(int argc, char *argv[])
     QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 #endif
     QApplication app(argc, argv);
+    app.setWindowIcon(QIcon(QStringLiteral(":/fxbviewer.png")));
     QCoreApplication::setOrganizationName("fxbViewer");
     QCoreApplication::setApplicationName("FXB Viewer");
     QCoreApplication::setApplicationVersion(QStringLiteral(FXBVIEWER_VERSION));
@@ -36,7 +38,7 @@ int main(int argc, char *argv[])
     const QString capture = parser.value(smoke ? "smoke-test" : "demo-capture");
     if (((smoke || parser.isSet("demo-capture")) && capture.isEmpty())
         || (smoke && parser.isSet("demo-capture")) || (!capture.isEmpty() && !demoMode) || (!capture.isEmpty() && !QDir().mkpath(capture))) {
-        qCritical("--demo-capture requires --demo and a writable directory."); return 2;
+        qCritical("Capture/smoke options require a writable output directory; --demo-capture also requires --demo. Do not combine both output options."); return 2;
     }
     std::unique_ptr<QTemporaryDir> demo;
     QString settings;
