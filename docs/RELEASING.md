@@ -2,7 +2,7 @@
 
 Windows x64 is the distribution target. Qt 5 and Linux remain development/test
 compatibility targets. Use MSVC 2022, Windows SDK and the exact Qt version in
-`packaging/qt.json`. `VERSION` controls runtime and Windows resource versions.
+`packaging/qt.json`. `VERSION.txt` controls runtime and Windows resource versions.
 
 ## Gates
 

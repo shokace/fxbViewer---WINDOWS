@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repo = Split-Path $PSScriptRoot -Parent
-$version = (Get-Content (Join-Path $repo 'VERSION') -Raw).Trim()
+$version = (Get-Content (Join-Path $repo 'VERSION.txt') -Raw).Trim()
 $qtConfig = Get-Content (Join-Path $repo 'packaging/qt.json') -Raw | ConvertFrom-Json
 $qtVersion = (& qmake -query QT_VERSION).Trim()
 if ($LASTEXITCODE -ne 0 -or $qtVersion -ne $qtConfig.version) { throw 'Unexpected Qt version for release packaging' }

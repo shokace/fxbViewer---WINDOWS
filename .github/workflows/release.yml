@@ -34,7 +34,7 @@ jobs:
           assert run['path'] == '.github/workflows/build.yml'
           assert run['status'] == 'completed' and run['conclusion'] == 'success'
           PY
-          version="$(cat VERSION)"
+          version="$(cat VERSION.txt)"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           gh run download "$RELEASE_RUN_ID" --name windows-x64-package --dir assets
           (cd assets && sha256sum --check SHA256SUMS.txt)
