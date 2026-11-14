@@ -69,31 +69,46 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
           mkdir build
           cd build
           qmake ..\fxbViewer.pro CONFIG+=release CONFIG-=debug
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
           nmake
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
           mkdir tests
           cd tests
           qmake ..\..\tests\tests.pro CONFIG+=release CONFIG-=debug
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
           nmake
-          if errorlevel 1 exit /b 1
-          set QT_QPA_PLATFORM=offscreen
-          release\fxbviewer_tests.exe
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
+      - name: Run Windows regression suite and require test report
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $env:QT_PLUGIN_PATH = "$env:RUNNER_TEMP/Qt/$env:FXB_QT_VERSION/msvc2022_64/plugins"
+          & ./build/tests/release/fxbviewer_tests.exe -o build/windows-tests.txt,txt -o build/windows-tests.xml,junitxml
+          $testExit = $LASTEXITCODE
+          if (Test-Path build/windows-tests.txt) { Get-Content build/windows-tests.txt }
+          if ($testExit -ne 0) { throw "Windows test process failed: $testExit" }
+          if (-not (Test-Path build/windows-tests.xml)) { throw 'No Windows test report produced' }
+          [xml]$report = Get-Content build/windows-tests.xml -Raw
+          if ([int]$report.testsuite.tests -lt 50 -or [int]$report.testsuite.failures -ne 0 -or [int]$report.testsuite.errors -ne 0) { throw 'Incomplete or failed Windows test report' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-regression-results
+          path: build/windows-tests.*
+          if-no-files-found: warn
       - name: Prepare verified Qt source and notices
         run: python scripts/prepare-qt-notices.py build/qt-notices --cache build/downloads
       - name: Package portable application and symbols
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
           pwsh -NoProfile -File scripts/package-windows.ps1 -Executable build/release/fxbViewer.exe -OutputDirectory dist -QtSourceNotices build/qt-notices
-          if errorlevel 1 exit /b 1
+          if not "%errorlevel%"=="0" exit /b %errorlevel%
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-x64-package
