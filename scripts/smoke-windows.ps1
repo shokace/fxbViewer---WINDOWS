@@ -16,7 +16,9 @@ foreach ($file in $manifest.files) {
     if (-not (Test-Path $path) -or (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.sha256) { throw "Package hash mismatch: $($file.path)" }
 }
 $exe = Join-Path $root 'fxbViewer.exe'
-if ((Get-Item $exe).VersionInfo.ProductVersion -ne $manifest.version) { throw 'Executable version mismatch' }
+# Windows VERSIONINFO has four numeric components; the app uses semver.
+$nativeVersion = (Get-Item $exe).VersionInfo.ProductVersion
+if ($nativeVersion -ne "$($manifest.version).0") { throw "Executable version mismatch: $nativeVersion vs $($manifest.version).0" }
 $previousPath = $env:PATH
 $previousPlatform = $env:QT_QPA_PLATFORM
 $previousPlugin = $env:QT_PLUGIN_PATH
